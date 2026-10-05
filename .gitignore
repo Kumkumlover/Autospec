@@ -1,0 +1,29 @@
+# Environment variables & secrets
+.env
+.env.local
+*.env
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.coverage
+*.crdownload
+
+# Virtual Environments
+.venv/
+env/
+venv/
+
+# Streamlit config & temporary files
+.streamlit/secrets.toml
+*.xlsx
+*.dxf.bak
+*_converted.dxf
+samples/*_house_plan.dxf
+cropped_key.png
+
+# Local standalone binaries
+tools/

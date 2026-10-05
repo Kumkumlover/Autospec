@@ -1,0 +1,646 @@
+{
+  "version": "1.0.0",
+  "currency": "INR",
+  "catalog_source": "Verified Indian B2B Construction & MEP Distributors (Amazon Business, Moglix, Industrybuying)",
+  "items": [
+    {
+      "sku_id": "LGT-PHL-12W-3K",
+      "trade": "Electrical",
+      "category": "Lighting",
+      "sub_category": "Downlight",
+      "brand": "Philips",
+      "model_name": "Stellar 12W 3000K Warm White Recessed LED Downlight",
+      "specifications": {
+        "wattage": 12,
+        "color_temp": "3000K",
+        "lumens": 1080,
+        "cutout_mm": 125,
+        "finish": "Round White"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 420.0,
+      "hsn_code": "9405",
+      "gst_percent": 18,
+      "vendor": "Amazon Business India",
+      "buy_url": "https://www.amazon.in/dp/B08C1X9K8Z"
+    },
+    {
+      "sku_id": "LGT-PHL-12W-4K",
+      "trade": "Electrical",
+      "category": "Lighting",
+      "sub_category": "Downlight",
+      "brand": "Philips",
+      "model_name": "Stellar 12W 4000K Neutral White Recessed LED Downlight",
+      "specifications": {
+        "wattage": 12,
+        "color_temp": "4000K",
+        "lumens": 1100,
+        "cutout_mm": 125,
+        "finish": "Round White"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 420.0,
+      "hsn_code": "9405",
+      "gst_percent": 18,
+      "vendor": "Amazon Business India",
+      "buy_url": "https://www.amazon.in/dp/B08C1X9K8Z"
+    },
+    {
+      "sku_id": "LGT-PHL-12W-6K",
+      "trade": "Electrical",
+      "category": "Lighting",
+      "sub_category": "Downlight",
+      "brand": "Philips",
+      "model_name": "Stellar 12W 6500K Cool Day Light Recessed LED Downlight",
+      "specifications": {
+        "wattage": 12,
+        "color_temp": "6500K",
+        "lumens": 1140,
+        "cutout_mm": 125,
+        "finish": "Round White"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 410.0,
+      "hsn_code": "9405",
+      "gst_percent": 18,
+      "vendor": "Amazon Business India",
+      "buy_url": "https://www.amazon.in/dp/B08C1X9K8Z"
+    },
+    {
+      "sku_id": "LGT-HAV-12W-3K",
+      "trade": "Electrical",
+      "category": "Lighting",
+      "sub_category": "Downlight",
+      "brand": "Havells",
+      "model_name": "Adore 12W 3000K Warm White Round LED Recessed Spot Light",
+      "specifications": {
+        "wattage": 12,
+        "color_temp": "3000K",
+        "lumens": 1020,
+        "cutout_mm": 120,
+        "finish": "Round White"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 385.0,
+      "hsn_code": "9405",
+      "gst_percent": 18,
+      "vendor": "Moglix India",
+      "buy_url": "https://business.moglix.com/p/havells-adore-12w-led-downlight"
+    },
+    {
+      "sku_id": "LGT-HAV-15W-3K",
+      "trade": "Electrical",
+      "category": "Lighting",
+      "sub_category": "Downlight",
+      "brand": "Havells",
+      "model_name": "Adore 15W 3000K Warm White Round Recessed Spot Light",
+      "specifications": {
+        "wattage": 15,
+        "color_temp": "3000K",
+        "lumens": 1350,
+        "cutout_mm": 140,
+        "finish": "Round White"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 465.0,
+      "hsn_code": "9405",
+      "gst_percent": 18,
+      "vendor": "Moglix India",
+      "buy_url": "https://business.moglix.com/p/havells-adore-15w-led-downlight"
+    },
+    {
+      "sku_id": "LGT-WIP-12W-3K",
+      "trade": "Electrical",
+      "category": "Lighting",
+      "sub_category": "Downlight",
+      "brand": "Wipro",
+      "model_name": "Garnet 12W 3000K Warm White Slim Recessed LED Panel",
+      "specifications": {
+        "wattage": 12,
+        "color_temp": "3000K",
+        "lumens": 1050,
+        "cutout_mm": 130,
+        "finish": "Slim Panel"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 395.0,
+      "hsn_code": "9405",
+      "gst_percent": 18,
+      "vendor": "Industrybuying",
+      "buy_url": "https://www.industrybuying.com/wipro-garnet-12w-led-panel"
+    },
+    {
+      "sku_id": "LGT-PHL-STP-25W",
+      "trade": "Electrical",
+      "category": "Lighting",
+      "sub_category": "Cove Light",
+      "brand": "Philips",
+      "model_name": "Hue/Deco 25W 3000K Warm White LED Strip Light (5 Meter Roll)",
+      "specifications": {
+        "wattage": 25,
+        "color_temp": "3000K",
+        "length_meters": 5,
+        "voltage": "12V DC"
+      },
+      "unit": "Roll",
+      "unit_rate_inr": 1250.0,
+      "hsn_code": "9405",
+      "gst_percent": 18,
+      "vendor": "Amazon Business India",
+      "buy_url": "https://www.amazon.in/dp/B07Y7N8K42"
+    },
+    {
+      "sku_id": "FAN-ATM-BLDC-1200",
+      "trade": "Electrical",
+      "category": "Fans",
+      "sub_category": "Ceiling Fan",
+      "brand": "Atomberg",
+      "model_name": "Renesa 1200mm BLDC Motor Energy Saving Ceiling Fan with Remote",
+      "specifications": {
+        "motor_type": "BLDC",
+        "sweep_mm": 1200,
+        "power_watts": 28,
+        "speed_rpm": 360,
+        "air_delivery_cmm": 235
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 3690.0,
+      "hsn_code": "8414",
+      "gst_percent": 18,
+      "vendor": "Amazon Business India",
+      "buy_url": "https://www.amazon.in/dp/B07Y7N8K42"
+    },
+    {
+      "sku_id": "FAN-ATM-STD-1200",
+      "trade": "Electrical",
+      "category": "Fans",
+      "sub_category": "Ceiling Fan",
+      "brand": "Atomberg",
+      "model_name": "Studio+ 1200mm BLDC Smart Decorative Ceiling Fan with LED Light",
+      "specifications": {
+        "motor_type": "BLDC",
+        "sweep_mm": 1200,
+        "power_watts": 32,
+        "speed_rpm": 360,
+        "smart_features": "IoT Alexa/Google Compatible"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 5150.0,
+      "hsn_code": "8414",
+      "gst_percent": 18,
+      "vendor": "Amazon Business India",
+      "buy_url": "https://www.amazon.in/dp/B08HJ7K91M"
+    },
+    {
+      "sku_id": "FAN-HAV-BLDC-1200",
+      "trade": "Electrical",
+      "category": "Fans",
+      "sub_category": "Ceiling Fan",
+      "brand": "Havells",
+      "model_name": "Stealth Air 1200mm BLDC Silent Ceiling Fan with Remote",
+      "specifications": {
+        "motor_type": "BLDC",
+        "sweep_mm": 1200,
+        "power_watts": 35,
+        "speed_rpm": 350
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 4850.0,
+      "hsn_code": "8414",
+      "gst_percent": 18,
+      "vendor": "Moglix India",
+      "buy_url": "https://business.moglix.com/p/havells-stealth-air-bldc"
+    },
+    {
+      "sku_id": "FAN-CRO-BLDC-1200",
+      "trade": "Electrical",
+      "category": "Fans",
+      "sub_category": "Ceiling Fan",
+      "brand": "Crompton",
+      "model_name": "Energion Hyperjet 1200mm BLDC Ceiling Fan 5-Star",
+      "specifications": {
+        "motor_type": "BLDC",
+        "sweep_mm": 1200,
+        "power_watts": 28,
+        "speed_rpm": 370
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 3390.0,
+      "hsn_code": "8414",
+      "gst_percent": 18,
+      "vendor": "Industrybuying",
+      "buy_url": "https://www.industrybuying.com/crompton-energion-bldc-fan"
+    },
+    {
+      "sku_id": "FAN-ORI-IND-1200",
+      "trade": "Electrical",
+      "category": "Fans",
+      "sub_category": "Ceiling Fan",
+      "brand": "Orient",
+      "model_name": "Pacific 1200mm Induction Motor High Speed Ceiling Fan",
+      "specifications": {
+        "motor_type": "Induction",
+        "sweep_mm": 1200,
+        "power_watts": 75,
+        "speed_rpm": 380
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 1950.0,
+      "hsn_code": "8414",
+      "gst_percent": 18,
+      "vendor": "Amazon Business India",
+      "buy_url": "https://www.amazon.in/dp/B00J50F7M4"
+    },
+    {
+      "sku_id": "FAN-HAV-EXH-200",
+      "trade": "Electrical",
+      "category": "Fans",
+      "sub_category": "Exhaust Fan",
+      "brand": "Havells",
+      "model_name": "Ventil Air DB 200mm Kitchen & Bathroom Exhaust Fan",
+      "specifications": {
+        "sweep_mm": 200,
+        "power_watts": 35,
+        "speed_rpm": 1350
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 1380.0,
+      "hsn_code": "8414",
+      "gst_percent": 18,
+      "vendor": "Moglix India",
+      "buy_url": "https://business.moglix.com/p/havells-ventil-air-db-200mm"
+    },
+    {
+      "sku_id": "SW-SCH-MOD-6A",
+      "trade": "Electrical",
+      "category": "Switches",
+      "sub_category": "Modular Switch",
+      "brand": "Schneider",
+      "model_name": "Opale 6A 1-Way Modular Switch White Glossy",
+      "specifications": {
+        "grade": "Modular",
+        "rating": "6A",
+        "modules": 1,
+        "color": "White"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 68.0,
+      "hsn_code": "8536",
+      "gst_percent": 18,
+      "vendor": "Moglix India",
+      "buy_url": "https://business.moglix.com/p/schneider-opale-6a-switch"
+    },
+    {
+      "sku_id": "SW-SCH-MOD-16A",
+      "trade": "Electrical",
+      "category": "Switches",
+      "sub_category": "Modular Switch",
+      "brand": "Schneider",
+      "model_name": "Opale 16A 1-Way Heavy Modular Switch with Indicator",
+      "specifications": {
+        "grade": "Modular",
+        "rating": "16A",
+        "modules": 1,
+        "color": "White"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 142.0,
+      "hsn_code": "8536",
+      "gst_percent": 18,
+      "vendor": "Moglix India",
+      "buy_url": "https://business.moglix.com/p/schneider-opale-16a-switch"
+    },
+    {
+      "sku_id": "SOC-SCH-MOD-16A",
+      "trade": "Electrical",
+      "category": "Switches",
+      "sub_category": "Socket",
+      "brand": "Schneider",
+      "model_name": "Opale 6/16A Universal 3-Pin Modular Socket with Safety Shutter",
+      "specifications": {
+        "grade": "Modular",
+        "rating": "6/16A",
+        "modules": 2,
+        "safety": "Shuttered"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 185.0,
+      "hsn_code": "8536",
+      "gst_percent": 18,
+      "vendor": "Moglix India",
+      "buy_url": "https://business.moglix.com/p/schneider-opale-socket-16a"
+    },
+    {
+      "sku_id": "SW-LEG-MOD-6A",
+      "trade": "Electrical",
+      "category": "Switches",
+      "sub_category": "Modular Switch",
+      "brand": "Legrand",
+      "model_name": "Mylinc 6A 1-Way Modular Switch White",
+      "specifications": {
+        "grade": "Modular",
+        "rating": "6A",
+        "modules": 1,
+        "color": "White"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 72.0,
+      "hsn_code": "8536",
+      "gst_percent": 18,
+      "vendor": "Industrybuying",
+      "buy_url": "https://www.industrybuying.com/legrand-mylinc-6a-switch"
+    },
+    {
+      "sku_id": "WIR-POL-2.5MM",
+      "trade": "Electrical",
+      "category": "Wiring",
+      "sub_category": "FR Wire",
+      "brand": "Polycab",
+      "model_name": "Optima+ 2.5 sq mm Flame Retardant PVC Insulated Copper Wire (90m)",
+      "specifications": {
+        "cross_section": "2.5 sq mm",
+        "length_meters": 90,
+        "conductor": "Pure Electrolytic Copper",
+        "insulation": "FR PVC"
+      },
+      "unit": "Coil",
+      "unit_rate_inr": 2850.0,
+      "hsn_code": "8544",
+      "gst_percent": 18,
+      "vendor": "Moglix India",
+      "buy_url": "https://business.moglix.com/p/polycab-2-5-sqmm-wire-90m"
+    },
+    {
+      "sku_id": "CIV-BRK-RED-230",
+      "trade": "Civil",
+      "category": "Masonry",
+      "sub_category": "Brickwork",
+      "brand": "Standard BIS",
+      "model_name": "230mm Thick First Class Red Clay Brick Masonry in Cement Mortar 1:6",
+      "specifications": {
+        "thickness_mm": 230,
+        "mortar_ratio": "1:6 (Cement : M-Sand)",
+        "compressive_strength": "7.5 N/mm2",
+        "statutory_rule": "IS 1200 Part 4"
+      },
+      "unit": "Cu.m",
+      "unit_rate_inr": 5400.0,
+      "hsn_code": "6901",
+      "gst_percent": 5,
+      "vendor": "Local Regional Builders Depot",
+      "buy_url": "https://www.industrybuying.com/red-clay-bricks-standard"
+    },
+    {
+      "sku_id": "CIV-BRK-RED-115",
+      "trade": "Civil",
+      "category": "Masonry",
+      "sub_category": "Partition Wall",
+      "brand": "Standard BIS",
+      "model_name": "115mm Thick Half-Brick Partition Wall in Cement Mortar 1:4 with Hoop Iron",
+      "specifications": {
+        "thickness_mm": 115,
+        "mortar_ratio": "1:4 with reinforcement hoop iron every 3rd course",
+        "statutory_rule": "IS 1200 Part 4"
+      },
+      "unit": "Sq.m",
+      "unit_rate_inr": 820.0,
+      "hsn_code": "6901",
+      "gst_percent": 5,
+      "vendor": "Local Regional Builders Depot",
+      "buy_url": "https://www.industrybuying.com/brick-partition-masonry"
+    },
+    {
+      "sku_id": "CIV-CEM-ULT-53",
+      "trade": "Civil",
+      "category": "Raw Materials",
+      "sub_category": "Cement",
+      "brand": "UltraTech",
+      "model_name": "UltraTech Super OPC 53 Grade Premium Cement (50 Kg Bag)",
+      "specifications": {
+        "grade": "OPC 53",
+        "weight_kg": 50,
+        "standard": "IS 12269"
+      },
+      "unit": "Bag",
+      "unit_rate_inr": 385.0,
+      "hsn_code": "2523",
+      "gst_percent": 28,
+      "vendor": "Moglix India",
+      "buy_url": "https://business.moglix.com/p/ultratech-opc-53-cement"
+    },
+    {
+      "sku_id": "CIV-SND-MSAND-Z2",
+      "trade": "Civil",
+      "category": "Raw Materials",
+      "sub_category": "Sand",
+      "brand": "Standard BIS",
+      "model_name": "Manufactured Sand (M-Sand Zone II) for Masonry & Concrete",
+      "specifications": {
+        "zone": "Zone II",
+        "silt_content": "<5%",
+        "standard": "IS 383"
+      },
+      "unit": "Cu.m",
+      "unit_rate_inr": 1650.0,
+      "hsn_code": "2505",
+      "gst_percent": 5,
+      "vendor": "Local Regional Aggregates Depot",
+      "buy_url": "https://www.industrybuying.com/m-sand-zone-2"
+    },
+    {
+      "sku_id": "FIN-PLS-INT-12MM",
+      "trade": "Finishes",
+      "category": "Plastering",
+      "sub_category": "Internal Plaster",
+      "brand": "Standard BIS",
+      "model_name": "12mm Internal Wall Plaster in Cement Mortar 1:4 with Neat Cement Finish",
+      "specifications": {
+        "thickness_mm": 12,
+        "mix_ratio": "1:4 (Cement : Fine Sand)",
+        "statutory_rule": "IS 1200 Part 12 (Statutory Opening Deductions Applied)"
+      },
+      "unit": "Sq.m",
+      "unit_rate_inr": 240.0,
+      "hsn_code": "2523",
+      "gst_percent": 18,
+      "vendor": "Turnkey Civil Contractor",
+      "buy_url": "https://business.moglix.com/p/internal-plastering-rate-standard"
+    },
+    {
+      "sku_id": "FIN-PNT-ASI-LUX",
+      "trade": "Finishes",
+      "category": "Painting",
+      "sub_category": "Interior Paint",
+      "brand": "Asian Paints",
+      "model_name": "Royale Luxury Emulsion Washable Interior Wall Paint (2 Coats over Primer + Putty)",
+      "specifications": {
+        "type": "Luxury Emulsion",
+        "finish": "Soft Sheen",
+        "washability": "High Washable",
+        "coverage_sqft_per_ltr": 140
+      },
+      "unit": "Sq.m",
+      "unit_rate_inr": 310.0,
+      "hsn_code": "3208",
+      "gst_percent": 18,
+      "vendor": "Amazon Business India",
+      "buy_url": "https://www.amazon.in/dp/B07L5P4V89"
+    },
+    {
+      "sku_id": "FIN-PNT-ASI-TRA",
+      "trade": "Finishes",
+      "category": "Painting",
+      "sub_category": "Interior Paint",
+      "brand": "Asian Paints",
+      "model_name": "Tractor Emulsion Interior Wall Paint (2 Coats over Putty)",
+      "specifications": {
+        "type": "Economy Emulsion",
+        "finish": "Matt",
+        "coverage_sqft_per_ltr": 130
+      },
+      "unit": "Sq.m",
+      "unit_rate_inr": 185.0,
+      "hsn_code": "3208",
+      "gst_percent": 18,
+      "vendor": "Amazon Business India",
+      "buy_url": "https://www.amazon.in/dp/B07K6Q1R12"
+    },
+    {
+      "sku_id": "FIN-TIL-KAJ-6012",
+      "trade": "Finishes",
+      "category": "Flooring",
+      "sub_category": "Vitrified Tile",
+      "brand": "Kajaria",
+      "model_name": "600x1200mm Glazed Vitrified Tiles (GVT) Polished Luxury Series",
+      "specifications": {
+        "dimensions_mm": "600x1200",
+        "thickness_mm": 9,
+        "type": "GVT Full Body",
+        "finish": "High Gloss Polished",
+        "coverage_sqm_per_box": 1.44
+      },
+      "unit": "Sq.m",
+      "unit_rate_inr": 1150.0,
+      "hsn_code": "6907",
+      "gst_percent": 18,
+      "vendor": "Kajaria Authorized Dealership",
+      "buy_url": "https://www.kajariaceramics.com/vitrified-tiles.php"
+    },
+    {
+      "sku_id": "FIN-TIL-SOM-6060",
+      "trade": "Finishes",
+      "category": "Flooring",
+      "sub_category": "Vitrified Tile",
+      "brand": "Somany",
+      "model_name": "600x600mm Double Charged Vitrified Floor Tiles Stain Resistant",
+      "specifications": {
+        "dimensions_mm": "600x600",
+        "thickness_mm": 9,
+        "type": "Double Charged",
+        "finish": "Glossy Nano Polish",
+        "coverage_sqm_per_box": 1.44
+      },
+      "unit": "Sq.m",
+      "unit_rate_inr": 820.0,
+      "hsn_code": "6907",
+      "gst_percent": 18,
+      "vendor": "Somany Ceramics Depot",
+      "buy_url": "https://www.somanyceramics.com/tiles/floor-tiles"
+    },
+    {
+      "sku_id": "FIN-MAR-ITA-BOT",
+      "trade": "Finishes",
+      "category": "Flooring",
+      "sub_category": "Natural Stone",
+      "brand": "Imported Natural",
+      "model_name": "Italian Botticino Classico Marble 18mm Slabs Mirror Polished",
+      "specifications": {
+        "thickness_mm": 18,
+        "type": "Imported Italian Marble",
+        "finish": "Diamond Polish with Epoxy Sealing"
+      },
+      "unit": "Sq.m",
+      "unit_rate_inr": 4200.0,
+      "hsn_code": "6802",
+      "gst_percent": 18,
+      "vendor": "Kishangarh Stone Terminal",
+      "buy_url": "https://www.industrybuying.com/italian-botticino-marble"
+    },
+    {
+      "sku_id": "FIN-CLG-GYP-12MM",
+      "trade": "Finishes",
+      "category": "Ceilings",
+      "sub_category": "False Ceiling",
+      "brand": "Gyproc Saint-Gobain",
+      "model_name": "Gyproc 12.5mm Plain Tapered Edge Gypsum Board False Ceiling System with G.I. Framework",
+      "specifications": {
+        "board_thickness_mm": 12.5,
+        "framing": "G.I. Perimeter and Intermediate Channel at 450mm c/c",
+        "finish": "Taped and Jointed Ready for Paint"
+      },
+      "unit": "Sq.m",
+      "unit_rate_inr": 1150.0,
+      "hsn_code": "6809",
+      "gst_percent": 18,
+      "vendor": "Moglix India",
+      "buy_url": "https://business.moglix.com/p/gyproc-saint-gobain-gypsum-board"
+    },
+    {
+      "sku_id": "PLB-JAQ-MIX-FLR",
+      "trade": "Plumbing",
+      "category": "CP Fittings",
+      "sub_category": "Basin Mixer",
+      "brand": "Jaquar",
+      "model_name": "Florentine Single Lever Basin Mixer with 450mm Braided Hoses (CP Finish)",
+      "specifications": {
+        "finish": "Chrome Plated",
+        "aerator": "Neoperl Honeycomb",
+        "cartridge": "35mm Ceramic"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 2890.0,
+      "hsn_code": "8481",
+      "gst_percent": 18,
+      "vendor": "Amazon Business India",
+      "buy_url": "https://www.amazon.in/dp/B00T6M1D9Y"
+    },
+    {
+      "sku_id": "PLB-KOH-EWC-VEL",
+      "trade": "Plumbing",
+      "category": "Sanitaryware",
+      "sub_category": "Commode EWC",
+      "brand": "Kohler",
+      "model_name": "Veil Wall-Hung Rimless Ceramic EWC with Quiet-Close Seat & Concealed Tank Bracket",
+      "specifications": {
+        "mounting": "Wall Hung",
+        "flush_type": "Class Five Rimless 3/4.5L",
+        "seat": "Soft Close Slim PP"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 12450.0,
+      "hsn_code": "6910",
+      "gst_percent": 18,
+      "vendor": "Kohler Authorized Store",
+      "buy_url": "https://www.amazon.in/dp/B07N3W9K12"
+    },
+    {
+      "sku_id": "PLB-HIN-BAS-OVE",
+      "trade": "Plumbing",
+      "category": "Sanitaryware",
+      "sub_category": "Wash Basin",
+      "brand": "Hindware",
+      "model_name": "Italian Collection Over-Counter Ceramic Wash Basin (550 x 400 x 140 mm)",
+      "specifications": {
+        "dimensions_mm": "550x400x140",
+        "glaze": "Starwhite Antibacterial Glaze",
+        "installation": "Counter Top"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 2450.0,
+      "hsn_code": "6910",
+      "gst_percent": 18,
+      "vendor": "Moglix India",
+      "buy_url": "https://business.moglix.com/p/hindware-over-counter-basin"
+    }
+  ]
+}

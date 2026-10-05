@@ -1,0 +1,43 @@
+# .ruff.toml — Plankton Code Quality Configuration for AutoSpec AI
+
+target-version = "py312"
+line-length = 120
+
+exclude = [
+    ".git",
+    ".pytest_cache",
+    ".ruff_cache",
+    "__pycache__",
+    "tools",
+    "samples",
+    "*.crdownload",
+]
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort (import sorting)
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "PIE",  # flake8-pie
+    "SIM",  # flake8-simplify
+]
+
+ignore = [
+    "E501",   # line-too-long (handled by formatter)
+    "B008",   # do not perform function calls in argument defaults (FastAPI Form/File pattern)
+    "SIM108", # use ternary operator instead of if-else
+    "SIM105", # use contextlib.suppress
+]
+
+[lint.per-file-ignores]
+"api/index.py" = ["E402"]  # sys.path setup required before module imports on Vercel
+"app.py" = ["E402"]        # Streamlit configuration commands
+
+
+[lint.isort]
+combine-as-imports = true
+known-first-party = ["cad_parser", "cad_visualizer", "spec_parser", "boq_engine", "sample_dxf_generator"]
