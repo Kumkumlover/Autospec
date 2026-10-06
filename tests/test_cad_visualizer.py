@@ -120,3 +120,29 @@ def test_visualizer_two_tier_linework():
     assert any("Doors" in n for n in names)
     assert any("Furniture" in n for n in names)
     assert any("Windows" in n for n in names)
+
+
+def test_visualizer_themes_and_opening_coordinates(sample_dxf):
+    takeoff = parse_cad_file(sample_dxf)
+    viz = CadVisualizer(takeoff)
+
+    # 1. Dark theme (AutoCAD Model Space)
+    fig_dark = viz.build_interactive_figure(theme="dark", dark_mode=True)
+    assert fig_dark.layout.plot_bgcolor == "#0D1117"
+    assert fig_dark.layout.paper_bgcolor == "#0D1117"
+
+    # 2. Light theme (Drafting Paper - high contrast)
+    fig_light = viz.build_interactive_figure(theme="light", dark_mode=False)
+    assert fig_light.layout.plot_bgcolor == "#FFFFFF"
+    assert fig_light.layout.paper_bgcolor == "#FFFFFF"
+
+    # 3. Blueprint Navy theme
+    fig_blue = viz.build_interactive_figure(theme="blueprint")
+    assert fig_blue.layout.plot_bgcolor == "#0B1D3A"
+
+    # 4. Opening coordinates verification
+    assert len(takeoff.openings) > 0
+    # At least some openings should have valid x, y coordinates
+    coords = [(op.x, op.y) for op in takeoff.openings if op.x is not None and op.y is not None]
+    assert len(coords) > 0
+

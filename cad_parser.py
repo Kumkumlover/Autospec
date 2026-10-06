@@ -39,6 +39,8 @@ class OpeningItem:
     area_sqm: float
     layer: str = "A-DOOR"
     cad_ref: str = ""
+    x: float | None = None
+    y: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -49,6 +51,8 @@ class OpeningItem:
             "area_sqm": round(self.area_sqm, 3),
             "layer": self.layer,
             "cad_ref": self.cad_ref,
+            "x": round(self.x, 3) if self.x is not None else None,
+            "y": round(self.y, 3) if self.y is not None else None,
         }
 
 
@@ -739,6 +743,8 @@ class CadParser:
                         area_sqm=op_area,
                         layer=insert.dxf.layer,
                         cad_ref=f"Block: {clean_name} ({src})",
+                        x=round(ins_x, 3),
+                        y=round(ins_y, 3),
                     )
                 )
                 opening_counter += 1
@@ -802,6 +808,8 @@ class CadParser:
                         area_sqm=op_area,
                         layer=arc.dxf.layer,
                         cad_ref=f"Door Swing Arc (r={w_m:.2f}m)",
+                        x=round(cx, 3),
+                        y=round(cy, 3),
                     )
                 )
                 opening_counter += 1
@@ -1111,6 +1119,10 @@ class CadParser:
                     [(round(pt[0] - off_x, 3), round(pt[1] - off_y, 3)) for pt in p]
                     for p in paths
                 ]
+            for op in openings:
+                if op.x is not None and op.y is not None:
+                    op.x = round(op.x - off_x, 3)
+                    op.y = round(op.y - off_y, 3)
             raw_min_x, raw_max_x = 0.0, raw_max_x - off_x
             raw_min_y, raw_max_y = 0.0, raw_max_y - off_y
 

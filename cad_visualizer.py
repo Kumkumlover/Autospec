@@ -20,16 +20,30 @@ from cad_parser import ParsedCadTakeoff
 class CadVisualizer:
     """Renders 2D CAD floor plans with two-tier vector linework and clean takeoff overlays."""
 
-    # High-Contrast Trade Color Palette for Takeoff Pins
-    TRADE_PALETTE = {
-        "Electrical - Lighting": {"color": "#F1C40F", "symbol": "diamond", "name": "Lighting"},
-        "Electrical - Fans": {"color": "#00BCD4", "symbol": "triangle-up", "name": "Fans"},
-        "Electrical - Switches & Sockets": {"color": "#9B59B6", "symbol": "square", "name": "Switches & Sockets"},
-        "Plumbing - Sanitaryware": {"color": "#E74C3C", "symbol": "circle", "name": "Sanitaryware"},
-        "Openings - Doors & Windows": {"color": "#FF6F00", "symbol": "square-cross", "name": "Openings (IS 1200)"},
-        "Furniture & Equipment": {"color": "#2ECC71", "symbol": "hexagon", "name": "Furniture"},
-        "Other Architectural Fittings": {"color": "#16A085", "symbol": "circle-open", "name": "Fittings"},
+    # High-Contrast Trade Color Palette for Dark / Blueprint Canvas (Neon & Luminous)
+    TRADE_PALETTE_DARK = {
+        "Electrical - Lighting": {"color": "#FACC15", "symbol": "diamond", "name": "Lighting"},
+        "Electrical - Fans": {"color": "#22D3EE", "symbol": "triangle-up", "name": "Fans"},
+        "Electrical - Switches & Sockets": {"color": "#C084FC", "symbol": "square", "name": "Switches & Sockets"},
+        "Plumbing - Sanitaryware": {"color": "#FB7185", "symbol": "circle", "name": "Sanitaryware"},
+        "Openings - Doors & Windows": {"color": "#FB923C", "symbol": "square-cross", "name": "Openings (IS 1200)"},
+        "Furniture & Equipment": {"color": "#4ADE80", "symbol": "hexagon", "name": "Furniture"},
+        "Other Architectural Fittings": {"color": "#2DD4BF", "symbol": "circle-open", "name": "Fittings"},
     }
+
+    # High-Contrast Trade Color Palette for Light Canvas (Deep Saturated Ink, Zero Blending)
+    TRADE_PALETTE_LIGHT = {
+        "Electrical - Lighting": {"color": "#B45309", "symbol": "diamond", "name": "Lighting"},
+        "Electrical - Fans": {"color": "#0284C7", "symbol": "triangle-up", "name": "Fans"},
+        "Electrical - Switches & Sockets": {"color": "#7E22CE", "symbol": "square", "name": "Switches & Sockets"},
+        "Plumbing - Sanitaryware": {"color": "#BE123C", "symbol": "circle", "name": "Sanitaryware"},
+        "Openings - Doors & Windows": {"color": "#C2410C", "symbol": "square-cross", "name": "Openings (IS 1200)"},
+        "Furniture & Equipment": {"color": "#15803D", "symbol": "hexagon", "name": "Furniture"},
+        "Other Architectural Fittings": {"color": "#0F766E", "symbol": "circle-open", "name": "Fittings"},
+    }
+
+    # Backward compatibility
+    TRADE_PALETTE = TRADE_PALETTE_DARK
 
     def __init__(self, takeoff: ParsedCadTakeoff) -> None:
         self.takeoff = takeoff
@@ -57,7 +71,8 @@ class CadVisualizer:
         show_opening_labels: bool | None = None,
         show_block_labels: bool | None = None,
         plot_height: int = 650,
-        dark_mode: bool = False,
+        dark_mode: bool = True,
+        theme: str = "dark",  # "dark", "blueprint", "light"
     ) -> go.Figure:
         """Constructs a two-tier interactive Plotly CAD vector canvas.
 
@@ -73,20 +88,68 @@ class CadVisualizer:
             label_mode = "openings"
 
         fig = go.Figure()
-        bg_color = "#181A1B" if dark_mode else "#FFFFFF"
-        grid_color = "#2D3748" if dark_mode else "#EDF2F7"
 
-        # Architectural Drafting Palette
-        wall_color = "#FFFFFF" if dark_mode else "#1F4E79"
-        door_color = "#F6AD55" if dark_mode else "#D35400"
-        window_color = "#63B3ED" if dark_mode else "#2980B9"
-        stair_color = "#A0AEC0" if dark_mode else "#7F8C8D"
-
-        # Furniture opacity depends on focus_mode
-        if focus_mode == "takeoff_focus":
-            furniture_color = "rgba(100, 116, 139, 0.20)" if dark_mode else "rgba(189, 195, 199, 0.30)"
+        # Resolve Theme & High-Contrast Palette
+        # Normalize theme choice
+        theme_lower = (theme or "dark").lower()
+        if "light" in theme_lower or (not dark_mode and "blue" not in theme_lower and "dark" not in theme_lower):
+            active_theme = "light"
+        elif "blue" in theme_lower:
+            active_theme = "blueprint"
         else:
-            furniture_color = "#718096" if dark_mode else "#A0AEC0"
+            active_theme = "dark"
+
+        if active_theme == "blueprint":
+            bg_color = "#0B1D3A"
+            grid_color = "#162E55"
+            wall_color = "#FFFFFF"
+            door_color = "#FDBA74"
+            window_color = "#7DD3FC"
+            stair_color = "#CBD5E1"
+            furniture_color = "#60A5FA" if focus_mode != "takeoff_focus" else "rgba(96, 165, 250, 0.25)"
+            plan_line_color = "#E0F2FE"
+            room_fill_color = "rgba(56, 189, 248, 0.12)"
+            room_line_color = "#38BDF8"
+            trade_palette = self.TRADE_PALETTE_DARK
+            marker_border = "#FFFFFF"
+            title_color = "#38BDF8"
+            axis_color = "#94A3B8"
+            legend_bg = "rgba(11, 29, 58, 0.90)"
+            legend_border = "#1E3A8A"
+        elif active_theme == "light":
+            bg_color = "#FFFFFF"
+            grid_color = "#E2E8F0"
+            wall_color = "#0F172A"  # Bold Jet Black - high contrast, zero blending!
+            door_color = "#C2410C"  # Deep Terracotta
+            window_color = "#1D4ED8"  # Deep Royal Blue
+            stair_color = "#475569"  # Deep Slate
+            furniture_color = "#64748B" if focus_mode != "takeoff_focus" else "rgba(100, 116, 139, 0.25)"
+            plan_line_color = "#1E293B"  # Architectural Ink
+            room_fill_color = "rgba(16, 185, 129, 0.12)"
+            room_line_color = "#059669"
+            trade_palette = self.TRADE_PALETTE_LIGHT
+            marker_border = "#0F172A"
+            title_color = "#0F172A"
+            axis_color = "#475569"
+            legend_bg = "rgba(255, 255, 255, 0.92)"
+            legend_border = "#CBD5E0"
+        else:  # "dark" / AutoCAD Model Space (DEFAULT!)
+            bg_color = "#0D1117"  # Deep midnight dark matching Streamlit!
+            grid_color = "#1E293B"
+            wall_color = "#F8FAFC"  # Crisp bright white!
+            door_color = "#FB923C"  # Vibrant amber orange!
+            window_color = "#38BDF8"  # Electric sky cyan!
+            stair_color = "#94A3B8"  # Crisp silver slate!
+            furniture_color = "#64748B" if focus_mode != "takeoff_focus" else "rgba(100, 116, 139, 0.25)"
+            plan_line_color = "#E2E8F0"  # Bright crisp linework!
+            room_fill_color = "rgba(16, 185, 129, 0.14)"
+            room_line_color = "#10B981"
+            trade_palette = self.TRADE_PALETTE_DARK
+            marker_border = "#000000"
+            title_color = "#F8FAFC"
+            axis_color = "#94A3B8"
+            legend_bg = "rgba(13, 17, 23, 0.90)"
+            legend_border = "#30363D"
 
         linework = getattr(self.takeoff, "architectural_linework", {})
         wall_segments = getattr(self.takeoff, "wall_segments", [])
@@ -227,7 +290,7 @@ class CadVisualizer:
                         x=o_xs,
                         y=o_ys,
                         mode="lines",
-                        line={"color": wall_color, "width": 1.6},
+                        line={"color": plan_line_color, "width": 1.8},
                         name=f"🏛️ Plan Linework ({min(len(other_paths), 8000)} segs)",
                         legendgroup="Base Linework",
                         legendgrouptitle_text="🏛️ Architectural Linework",
@@ -260,8 +323,8 @@ class CadVisualizer:
                                 y=ry,
                                 mode="lines",
                                 fill="toself",
-                                fillcolor="rgba(46, 204, 113, 0.10)",
-                                line={"color": "#27AE60", "width": 1.4, "dash": "dot"},
+                                fillcolor=room_fill_color,
+                                line={"color": room_line_color, "width": 1.6, "dash": "dot"},
                                 name=f"📐 Floor Boundary ({area:.0f} m²)",
                                 legendgroup="Takeoff Highlights",
                                 legendgrouptitle_text="🎯 Takeoff Highlights",
@@ -281,16 +344,16 @@ class CadVisualizer:
                                 rem_xs.append(p[0])
                                 rem_ys.append(p[1])
                             rem_xs.append(pts[0][0])
-                            rem_ys.append(pts[0][1])
+                            rem_xs.append(pts[0][1])
                             rem_xs.append(None)
-                            rem_ys.append(None)
+                            rem_xs.append(None)
                     if rem_xs:
                         fig.add_trace(
                             go.Scatter(
                                 x=rem_xs,
                                 y=rem_ys,
                                 mode="lines",
-                                line={"color": "#27AE60", "width": 1.0, "dash": "dot"},
+                                line={"color": room_line_color, "width": 1.2, "dash": "dot"},
                                 name=f"📐 Additional Floor Polygons ({len(remaining_rooms)})",
                                 legendgroup="Takeoff Highlights",
                                 showlegend=False,
@@ -302,21 +365,24 @@ class CadVisualizer:
             if visible_trades is None or any("Opening" in t for t in visible_trades):
                 op_xs, op_ys, op_labels, op_hovers = [], [], [], []
                 for op in openings:
-                    matched_inst = next(
-                        (
-                            b
-                            for b in block_instances
-                            if op.id in b.get("name", "")
-                            or "DOOR" in b.get("name", "").upper()
-                            or "PUERT" in b.get("name", "").upper()
-                        ),
-                        None,
-                    )
-                    if matched_inst:
-                        x, y = matched_inst["x"], matched_inst["y"]
+                    if getattr(op, "x", None) is not None and getattr(op, "y", None) is not None:
+                        x, y = op.x, op.y
                     else:
-                        x = (bounding_box.get("min_x", 0) + bounding_box.get("max_x", 10)) / 2
-                        y = (bounding_box.get("min_y", 0) + bounding_box.get("max_y", 10)) / 2
+                        matched_inst = next(
+                            (
+                                b
+                                for b in block_instances
+                                if op.id in b.get("name", "")
+                                or "DOOR" in b.get("name", "").upper()
+                                or "PUERT" in b.get("name", "").upper()
+                            ),
+                            None,
+                        )
+                        if matched_inst:
+                            x, y = matched_inst["x"], matched_inst["y"]
+                        else:
+                            x = (bounding_box.get("min_x", 0) + bounding_box.get("max_x", 10)) / 2
+                            y = (bounding_box.get("min_y", 0) + bounding_box.get("max_y", 10)) / 2
 
                     op_xs.append(x)
                     op_ys.append(y)
@@ -332,6 +398,8 @@ class CadVisualizer:
                     )
 
                 if op_xs:
+                    op_marker_color = "#FB923C" if active_theme != "light" else "#C2410C"
+                    op_border_color = "#C2410C" if active_theme != "light" else "#7C2D12"
                     fig.add_trace(
                         go.Scatter(
                             x=op_xs,
@@ -339,13 +407,13 @@ class CadVisualizer:
                             mode="markers+text" if label_mode in ("openings", "all") else "markers",
                             marker={
                                 "size": 12,
-                                "color": "#FF6F00",
+                                "color": op_marker_color,
                                 "symbol": "square-cross",
-                                "line": {"color": "#B95C00", "width": 1.5},
+                                "line": {"color": op_border_color, "width": 1.5},
                             },
                             text=op_labels,
                             textposition="bottom center",
-                            textfont={"size": 9, "color": "#FF6F00"},
+                            textfont={"size": 9, "color": op_marker_color},
                             hovertext=op_hovers,
                             hoverinfo="text",
                             name=f"🏷️ Openings ({len(op_xs)} Deductions)",
@@ -380,7 +448,7 @@ class CadVisualizer:
                     ):
                         continue
 
-                style = self.TRADE_PALETTE.get(trade, self.TRADE_PALETTE["Other Architectural Fittings"])
+                style = trade_palette.get(trade, trade_palette.get("Other Architectural Fittings", {}))
                 icon = trade_icons.get(trade, "📍")
                 bx = [b["x"] for b in instances]
                 by = [b["y"] for b in instances]
@@ -401,13 +469,13 @@ class CadVisualizer:
                         mode="markers+text" if label_mode == "all" else "markers",
                         marker={
                             "size": 10,
-                            "color": style["color"],
+                            "color": style.get("color", "#FACC15"),
                             "symbol": style.get("symbol", "circle"),
-                            "line": {"color": "#1A202C" if not dark_mode else "#FFFFFF", "width": 1},
+                            "line": {"color": marker_border, "width": 1.2},
                         },
                         text=b_texts,
                         textposition="top right",
-                        textfont={"size": 8, "color": style["color"]},
+                        textfont={"size": 8, "color": style.get("color", title_color)},
                         hovertext=b_hovers,
                         hoverinfo="text",
                         name=f"{icon} {trade.split(' - ')[-1]} ({len(instances)} pcs)",
@@ -467,7 +535,7 @@ class CadVisualizer:
                 "text": f"<b>Interactive Vector Visualizer</b> — {file_name} ({unit_label})",
                 "x": 0.02,
                 "y": 0.98,
-                "font": {"size": 15, "color": "#1F4E79" if not dark_mode else "#FFFFFF"},
+                "font": {"size": 15, "color": title_color},
             },
             xaxis={
                 "title": f"X Coordinate ({unit_label})",
@@ -495,10 +563,10 @@ class CadVisualizer:
                 "y": 1.0,
                 "xanchor": "left",
                 "x": 1.02,
-                "bgcolor": "rgba(255, 255, 255, 0.90)" if not dark_mode else "rgba(26, 32, 44, 0.90)",
-                "bordercolor": "#CBD5E0" if not dark_mode else "#4A5568",
+                "bgcolor": legend_bg,
+                "bordercolor": legend_border,
                 "borderwidth": 1,
-                "font": {"size": 10},
+                "font": {"size": 10, "color": title_color},
                 "tracegroupgap": 8,
             },
             dragmode="pan",

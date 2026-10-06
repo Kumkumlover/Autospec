@@ -9,11 +9,26 @@ Provides a 4-tab workflow:
 
 from __future__ import annotations
 
+import importlib
 import os
 import tempfile
 
 import pandas as pd
 import streamlit as st
+
+import boq_engine
+import cad_parser
+import cad_visualizer
+import sample_dxf_generator
+import spec_parser
+
+# Force reload of core modules on every Streamlit script execution
+# to prevent stale Python in-memory module caching
+importlib.reload(boq_engine)
+importlib.reload(cad_parser)
+importlib.reload(cad_visualizer)
+importlib.reload(sample_dxf_generator)
+importlib.reload(spec_parser)
 
 from boq_engine import BoqEngine
 from cad_parser import CadParser, convert_dwg_to_dxf
@@ -525,7 +540,7 @@ with tab1:
         "Inspect exactly where and what symbols, wall lines, room boundaries, and openings were captured from the CAD file."
     )
 
-    ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns([1.5, 1.2, 1.1, 1.0])
+    ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4, ctrl_col5 = st.columns([1.4, 1.2, 1.1, 1.1, 0.9])
     with ctrl_col1:
         viz_mode = st.radio(
             "Visualizer Engine",
@@ -533,6 +548,19 @@ with tab1:
             horizontal=True,
         )
     with ctrl_col2:
+        theme_choice = st.selectbox(
+            "Canvas Theme",
+            ["🌑 AutoCAD Dark Space", "📐 Blueprint Navy", "📄 Drafting Paper (Light)"],
+            index=0,
+            help="High-contrast CAD styling: AutoCAD Dark matches dark mode; Blueprint Navy uses technical blue; Drafting Paper uses high-contrast jet black ink on white with zero washed-out lines.",
+        )
+        if "Dark" in theme_choice:
+            canvas_theme = "dark"
+        elif "Blueprint" in theme_choice:
+            canvas_theme = "blueprint"
+        else:
+            canvas_theme = "light"
+    with ctrl_col3:
         focus_choice = st.selectbox(
             "Visual Focus Mode",
             ["Full Blueprint + Takeoff", "Takeoff Audit (Dim Furniture)", "Linework Only (Clean Plan)"],
@@ -545,7 +573,7 @@ with tab1:
             focus_mode = "linework_only"
         else:
             focus_mode = "blueprint"
-    with ctrl_col3:
+    with ctrl_col4:
         label_choice = st.selectbox(
             "Text Labels",
             ["Clean (Hover to Inspect)", "Openings Only", "All Labels"],
@@ -558,7 +586,7 @@ with tab1:
             label_mode = "openings"
         else:
             label_mode = "all"
-    with ctrl_col4:
+    with ctrl_col5:
         canvas_height = st.slider("Canvas Height", min_value=500, max_value=850, value=650, step=50)
 
     # Organized Layer & Trade Visibility Controls
@@ -599,6 +627,8 @@ with tab1:
             label_mode=label_mode,
             focus_mode=focus_mode,
             plot_height=canvas_height,
+            theme=canvas_theme,
+            dark_mode=(canvas_theme != "light"),
         )
         st.plotly_chart(fig, use_container_width=True)
         st.caption(
@@ -611,7 +641,11 @@ with tab1:
             st.image(img_bytes, caption=f"High-Resolution 2D Blueprint: {active_name}", use_column_width=True)
         else:
             st.warning("Blueprint rendering unavailable for this drawing. Showing Interactive Inspector instead.")
-            fig = visualizer.build_interactive_figure(plot_height=canvas_height)
+            fig = visualizer.build_interactive_figure(
+                plot_height=canvas_height,
+                theme=canvas_theme,
+                dark_mode=(canvas_theme != "light"),
+            )
             st.plotly_chart(fig, use_container_width=True)
 
     st.divider()
