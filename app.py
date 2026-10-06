@@ -89,9 +89,9 @@ with st.sidebar:
 
     st.markdown("### 1. Drawing Ingestion")
     uploaded_file = st.file_uploader(
-        "Upload 2D CAD Drawing (.DXF or .DWG)",
-        type=["dxf", "dwg"],
-        help="Upload an open DXF vector file or an AutoCAD DWG binary file",
+        "Upload 2D CAD Drawing, PDF, or Floor Plan Image",
+        type=["dxf", "dwg", "png", "jpg", "jpeg", "webp", "pdf"],
+        help="Upload an open DXF vector file, AutoCAD DWG binary file, architectural PDF sheet, or floor plan image (.png/.jpg)",
     )
 
     st.markdown("#### 🎯 Benchmark Real-World Cases")
@@ -109,6 +109,8 @@ with st.sidebar:
     sample_col3, sample_col4 = st.columns(2)
     use_sample_apt = sample_col3.button("🏢 Apartment-1", use_container_width=True)
     use_sample_20x55 = sample_col4.button("🏘️ 20x55 House", use_container_width=True)
+    sample_col5, _ = st.columns(2)
+    use_sample_img = sample_col5.button("🖼️ Scanned Plan (PNG)", use_container_width=True)
 
     st.divider()
     st.markdown("### 2. Geometry Parameters")
@@ -193,7 +195,13 @@ if uploaded_file is not None:
         with open(saved_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
 
-        if uploaded_file.name.lower().endswith(".dwg"):
+        ext = os.path.splitext(uploaded_file.name.lower())[1]
+        st.session_state["is_dwg_converted"] = False
+        st.session_state["is_raster_converted"] = False
+        st.session_state["is_pdf_converted"] = False
+        st.session_state["uploaded_image_preview"] = None
+
+        if ext == ".dwg":
             try:
                 converted_dxf = convert_dwg_to_dxf(saved_path)
                 st.session_state["cad_path"] = converted_dxf
@@ -205,12 +213,50 @@ if uploaded_file is not None:
                 st.sidebar.error(f"DWG conversion: {e}")
                 st.session_state["cad_path"] = saved_path
                 st.session_state["display_name"] = uploaded_file.name
-                st.session_state["is_dwg_converted"] = False
+                st.session_state["_last_uploaded_name"] = uploaded_file.name
+        elif ext in [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"]:
+            try:
+                from raster_converter import convert_image_to_dxf
+
+                converted_dxf = convert_image_to_dxf(saved_path)
+                st.session_state["cad_path"] = converted_dxf
+                st.session_state["display_name"] = uploaded_file.name
+                st.session_state["is_raster_converted"] = True
+                st.session_state["uploaded_image_preview"] = uploaded_file.getvalue()
+                st.session_state["_last_uploaded_name"] = uploaded_file.name
+                st.sidebar.success(f"Vectorized Image: {uploaded_file.name}")
+            except Exception as e:
+                st.sidebar.error(f"Image vectorization: {e}")
+                st.session_state["cad_path"] = saved_path
+                st.session_state["display_name"] = uploaded_file.name
+                st.session_state["_last_uploaded_name"] = uploaded_file.name
+        elif ext == ".pdf":
+            try:
+                from raster_converter import convert_pdf_to_dxf
+
+                converted_dxf = convert_pdf_to_dxf(saved_path)
+                st.session_state["cad_path"] = converted_dxf
+                st.session_state["display_name"] = uploaded_file.name
+                st.session_state["is_pdf_converted"] = True
+                try:
+                    import pymupdf
+
+                    pdf_doc = pymupdf.open(saved_path)
+                    preview_bytes = pdf_doc[0].get_pixmap(dpi=150).tobytes("png")
+                    pdf_doc.close()
+                    st.session_state["uploaded_image_preview"] = preview_bytes
+                except Exception:
+                    pass
+                st.session_state["_last_uploaded_name"] = uploaded_file.name
+                st.sidebar.success(f"Vectorized PDF: {uploaded_file.name}")
+            except Exception as e:
+                st.sidebar.error(f"PDF vectorization: {e}")
+                st.session_state["cad_path"] = saved_path
+                st.session_state["display_name"] = uploaded_file.name
                 st.session_state["_last_uploaded_name"] = uploaded_file.name
         else:
             st.session_state["cad_path"] = saved_path
             st.session_state["display_name"] = uploaded_file.name
-            st.session_state["is_dwg_converted"] = False
             st.session_state["_last_uploaded_name"] = uploaded_file.name
             st.sidebar.success(f"Loaded DXF: {uploaded_file.name}")
 
@@ -334,6 +380,25 @@ if use_sample_20x55:
     )
     st.rerun()
 
+if use_sample_img:
+    img_sample = "samples/test_render_sample.png"
+    from raster_converter import convert_image_to_dxf
+
+    conv_dxf = convert_image_to_dxf(img_sample)
+    st.session_state["cad_path"] = conv_dxf
+    st.session_state["display_name"] = "test_render_sample.png"
+    st.session_state["is_dwg_converted"] = False
+    st.session_state["is_raster_converted"] = True
+    with open(img_sample, "rb") as f:
+        st.session_state["uploaded_image_preview"] = f.read()
+    st.session_state["client_brief"] = (
+        "Residential 2BHK floor plan fitout vectorized directly from scanned architectural drawing. "
+        "Living and dining with vitrified tiles, bedrooms with anti-skid tiles. "
+        "Philips 12W warm white LED downlights and Atomberg BLDC ceiling fans throughout. "
+        "Schneider Opale modular switches and Asian Paints Royale Luxury washable emulsion."
+    )
+    st.rerun()
+
 
 # -----------------------------------------------------------------------------
 # APP HEADER
@@ -384,6 +449,22 @@ with tab1:
         st.success(
             "✨ **AutoCAD DWG Format Verified**: Drawing converted 100% locally and offline via the bundled LibreDWG engine. Air-gap vector guarantee preserved."
         )
+    elif st.session_state.get("is_raster_converted"):
+        st.success(
+            "✨ **Floor Plan Image Vectorized**: Uploaded drawing image binarized and converted 100% locally to closed 2D DXF vector geometry (`A-WALL`, `A-FLOR`). Air-gap vector guarantee preserved."
+        )
+    elif st.session_state.get("is_pdf_converted"):
+        st.success(
+            "✨ **Architectural PDF Vectorized**: Drawing paths extracted 100% locally to 2D DXF vector format. Air-gap vector guarantee preserved."
+        )
+
+    if st.session_state.get("uploaded_image_preview"):
+        with st.expander("🖼️ View Original Uploaded Floor Plan Drawing / Image", expanded=False):
+            st.image(
+                st.session_state["uploaded_image_preview"],
+                caption=f"Original Uploaded Drawing: {active_name}",
+                use_container_width=True,
+            )
 
     # High Level Takeoff Metrics
     m1, m2, m3, m4, m5 = st.columns(5)

@@ -20,6 +20,13 @@ import ezdxf
 from ezdxf.document import Drawing
 from ezdxf.layouts import Modelspace
 
+from raster_converter import (
+    convert_image_to_dxf,
+    convert_pdf_to_dxf,
+    is_image_file,
+    is_pdf_file,
+)
+
 
 @dataclass
 class OpeningItem:
@@ -931,34 +938,54 @@ class CadParser:
         file_input: str | bytes,
         filename: str | None = None,
     ) -> ParsedCadTakeoff:
-        """Parses a 2D CAD drawing (.DXF or .DWG).
+        """Parses a 2D CAD drawing (.DXF, .DWG, .PDF, or raster image .PNG/.JPG).
 
-        If a .DWG file is supplied, it is automatically converted to .DXF in a temporary
-        file via the local air-gapped LibreDWG dwg2dxf engine.
+        If a .DWG file is supplied, it is automatically converted to .DXF via local LibreDWG.
+        If a raster image (.png, .jpg, .jpeg, .webp) or PDF is supplied, it is converted
+        to 2D DXF vector format locally via raster_converter.
         """
         temp_dxf = None
-        is_dwg = False
+        is_converted = False
 
         if isinstance(file_input, str):
             if filename is None:
                 filename = os.path.basename(file_input)
-            if file_input.lower().endswith(".dwg"):
-                is_dwg = True
+            ext = os.path.splitext(filename.lower())[1]
+            if ext == ".dwg":
+                is_converted = True
                 temp_dxf = convert_dwg_to_dxf(file_input)
+                target_path = temp_dxf
+            elif is_image_file(filename):
+                is_converted = True
+                temp_dxf = convert_image_to_dxf(file_input)
+                target_path = temp_dxf
+            elif is_pdf_file(filename):
+                is_converted = True
+                temp_dxf = convert_pdf_to_dxf(file_input)
                 target_path = temp_dxf
             else:
                 target_path = file_input
         else:
             fname = filename or "drawing.dxf"
-            if fname.lower().endswith(".dwg"):
-                is_dwg = True
+            ext = os.path.splitext(fname.lower())[1]
+            if ext == ".dwg":
+                is_converted = True
                 temp_dxf = convert_dwg_to_dxf(file_input)
+                target_path = temp_dxf
+            elif is_image_file(fname):
+                is_converted = True
+                temp_dxf = convert_image_to_dxf(file_input)
+                target_path = temp_dxf
+            elif is_pdf_file(fname):
+                is_converted = True
+                temp_dxf = convert_pdf_to_dxf(file_input)
                 target_path = temp_dxf
             else:
                 fd, temp_dxf = tempfile.mkstemp(suffix=".dxf")
                 with os.fdopen(fd, "wb") as f:
                     f.write(file_input)
                 target_path = temp_dxf
+                is_converted = True
 
         try:
             takeoff = self.parse_dxf_file(target_path)
@@ -966,7 +993,7 @@ class CadParser:
                 takeoff.file_name = filename
             return takeoff
         finally:
-            if temp_dxf and os.path.exists(temp_dxf) and (is_dwg or not isinstance(file_input, str)):
+            if temp_dxf and os.path.exists(temp_dxf) and is_converted:
                 try:
                     os.remove(temp_dxf)
                 except Exception:

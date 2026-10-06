@@ -102,3 +102,54 @@ def test_cad_parser_dwg_bytes_upload():
     assert takeoff is not None
     assert takeoff.file_name == "uploaded_user_house.dwg"
     assert takeoff.total_floor_area_sqm > 100.0
+
+
+def test_cad_parser_image_file_conversion():
+    """Verify raster floor plan image (.PNG/.JPG) ingestion and vector conversion."""
+    from cad_parser import parse_cad_file
+
+    img_file = "samples/test_render_sample.png"
+    assert os.path.exists(img_file)
+
+    takeoff = parse_cad_file(img_file)
+    assert takeoff is not None
+    assert takeoff.units == "m"
+    assert takeoff.total_floor_area_sqm > 30.0
+    assert takeoff.wall_length_m > 30.0
+    assert len(takeoff.openings) >= 1
+
+
+def test_cad_parser_image_bytes_upload():
+    """Verify in-memory image bytes ingestion."""
+    from cad_parser import parse_cad_file
+
+    img_file = "samples/test_render_sample.png"
+    with open(img_file, "rb") as f:
+        img_bytes = f.read()
+
+    takeoff = parse_cad_file(img_bytes, filename="my_scanned_plan.png")
+    assert takeoff is not None
+    assert takeoff.file_name == "my_scanned_plan.png"
+    assert takeoff.total_floor_area_sqm > 30.0
+
+
+def test_cad_parser_pdf_conversion(tmp_path):
+    """Verify architectural PDF ingestion and vector conversion."""
+    import pymupdf
+    from cad_parser import parse_cad_file
+
+    pdf_path = str(tmp_path / "architectural_sheet.pdf")
+    doc = pymupdf.open()
+    page = doc.new_page(width=600, height=800)
+    # Draw floor plan rects
+    shape = page.new_shape()
+    shape.draw_rect(pymupdf.Rect(50, 50, 550, 750))
+    shape.draw_line(pymupdf.Point(50, 400), pymupdf.Point(550, 400))
+    shape.finish(width=2, color=(0, 0, 0))
+    shape.commit()
+    doc.save(pdf_path)
+    doc.close()
+
+    takeoff = parse_cad_file(pdf_path)
+    assert takeoff is not None
+    assert takeoff.total_floor_area_sqm > 10.0

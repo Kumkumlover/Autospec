@@ -91,4 +91,18 @@ def test_api_invalid_extension(tmp_path):
         )
 
     assert response.status_code == 400
-    assert "Only .dxf and .dwg CAD files are supported" in response.json()["detail"]
+    assert "Unsupported file format" in response.json()["detail"]
+
+
+def test_api_image_upload():
+    img_file = "samples/test_render_sample.png"
+    with open(img_file, "rb") as f:
+        response = client.post(
+            "/api/takeoff",
+            files={"file": ("test_render_sample.png", f, "image/png")},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert data["takeoff"]["total_floor_area_sqm"] > 30.0

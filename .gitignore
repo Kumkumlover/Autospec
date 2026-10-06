@@ -24,6 +24,9 @@ venv/
 *_converted.dxf
 samples/*_house_plan.dxf
 cropped_key.png
+*.zip
+Test 1.pdf
+Test 2.webp
 
 # Local standalone binaries
 tools/

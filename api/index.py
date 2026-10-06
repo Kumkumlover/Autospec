@@ -74,6 +74,9 @@ def parse_brief_endpoint(payload: BriefRequest) -> dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+ALLOWED_DRAWING_EXTS = (".dxf", ".dwg", ".png", ".jpg", ".jpeg", ".webp", ".pdf")
+
+
 @app.post("/api/takeoff")
 async def cad_takeoff_endpoint(
     file: UploadFile = File(...),
@@ -83,8 +86,11 @@ async def cad_takeoff_endpoint(
 ) -> dict[str, Any]:
     raw_name = file.filename or "drawing.dxf"
     ext = os.path.splitext(raw_name)[1].lower()
-    if ext not in (".dxf", ".dwg"):
-        raise HTTPException(status_code=400, detail="Only .dxf and .dwg CAD files are supported.")
+    if ext not in ALLOWED_DRAWING_EXTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file format '{ext}'. Supported: {', '.join(ALLOWED_DRAWING_EXTS)}",
+        )
 
     fd, temp_path = tempfile.mkstemp(suffix=ext, prefix="autospec_")
     try:
@@ -121,8 +127,11 @@ async def generate_boq_endpoint(
 ) -> dict[str, Any]:
     raw_name = file.filename or "drawing.dxf"
     ext = os.path.splitext(raw_name)[1].lower()
-    if ext not in (".dxf", ".dwg"):
-        raise HTTPException(status_code=400, detail="Only .dxf and .dwg CAD files are supported.")
+    if ext not in ALLOWED_DRAWING_EXTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file format '{ext}'. Supported: {', '.join(ALLOWED_DRAWING_EXTS)}",
+        )
 
     fd, temp_path = tempfile.mkstemp(suffix=ext, prefix="autospec_")
     try:
@@ -171,8 +180,11 @@ async def export_excel_endpoint(
 ) -> Response:
     raw_name = file.filename or "drawing.dxf"
     ext = os.path.splitext(raw_name)[1].lower()
-    if ext not in (".dxf", ".dwg"):
-        raise HTTPException(status_code=400, detail="Only .dxf and .dwg CAD files are supported.")
+    if ext not in ALLOWED_DRAWING_EXTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file format '{ext}'. Supported: {', '.join(ALLOWED_DRAWING_EXTS)}",
+        )
 
     fd_cad, temp_cad = tempfile.mkstemp(suffix=ext, prefix="autospec_cad_")
     fd_xlsx, temp_xlsx = tempfile.mkstemp(suffix=".xlsx", prefix="autospec_boq_")
