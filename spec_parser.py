@@ -50,13 +50,20 @@ class ClientSpecification(BaseModel):
 
 
 def _extract_heuristically(brief_text: str) -> ClientSpecification:
-    """Deterministic offline regex & keyword scoring extractor."""
+    """Deterministic offline regex & keyword scoring extractor supporting English & Hinglish vernacular."""
     lower = brief_text.lower()
+
+    # Project Type
+    project_type = "Residential Interior"
+    if "commercial" in lower or "office" in lower or "retail" in lower or "fit-out" in lower:
+        project_type = "Commercial Fit-Out"
+    elif "villa" in lower or "bungalow" in lower:
+        project_type = "Custom Villa"
 
     # 1. Lighting Brand
     lighting_brand = "Philips"
-    if re.search(r"havells\s+(?:\w+\s+){0,3}(?:light|spot|downlight|panel|led)", lower) or (
-        "havells" in lower and ("spot" in lower or "downlight" in lower)
+    if re.search(r"havells\s+(?:\w+\s+){0,3}(?:light|spot|downlight|panel|led|batti|roshni)", lower) or (
+        "havells" in lower and ("spot" in lower or "downlight" in lower or "batti" in lower)
     ):
         lighting_brand = "Havells"
     elif "wipro" in lower:
@@ -65,7 +72,7 @@ def _extract_heuristically(brief_text: str) -> ClientSpecification:
         lighting_brand = "Syska"
     elif "philips" in lower:
         lighting_brand = "Philips"
-    elif "havells" in lower and not re.search(r"havells\s+(?:\w+\s+){0,3}fan", lower):
+    elif "havells" in lower and not re.search(r"havells\s+(?:\w+\s+){0,3}(?:fan|pankh)", lower):
         lighting_brand = "Havells"
 
     # 2. Lighting Wattage
@@ -73,8 +80,8 @@ def _extract_heuristically(brief_text: str) -> ClientSpecification:
     watt_match = re.search(r"(\d+)\s*(?:w|watt)", lower)
     if watt_match:
         val = int(watt_match.group(1))
-        if val in [12, 15, 18, 20]:
-            wattage = val
+        if val in [12, 15, 18, 20, 36]:
+            wattage = val if val in [12, 15] else (15 if val < 30 else 12)
         elif val < 14:
             wattage = 12
         else:
@@ -86,16 +93,16 @@ def _extract_heuristically(brief_text: str) -> ClientSpecification:
         cct = "4000K"
     elif "6500k" in lower or "6000k" in lower or "cool white" in lower or "cool day" in lower:
         cct = "6500K"
-    elif "3000k" in lower or "warm white" in lower or "yellow" in lower or "warm" in lower:
+    elif "3000k" in lower or "warm white" in lower or "yellow" in lower or "warm" in lower or "peeli" in lower:
         cct = "3000K"
 
     # 4. Fan Brand & Type
     fan_brand = "Atomberg"
-    if re.search(r"orient\s+(?:\w+\s+){0,3}fan|fan\w*\s+(?:\w+\s+){0,3}orient", lower) or "orient" in lower:
+    if re.search(r"orient\s+(?:\w+\s+){0,3}(?:fan|pankh)|(?:fan|pankh)\w*\s+(?:\w+\s+){0,3}orient", lower) or "orient" in lower:
         fan_brand = "Orient"
-    elif re.search(r"crompton\s+(?:\w+\s+){0,3}fan|fan\w*\s+(?:\w+\s+){0,3}crompton", lower) or "crompton" in lower:
+    elif re.search(r"crompton\s+(?:\w+\s+){0,3}(?:fan|pankh)|(?:fan|pankh)\w*\s+(?:\w+\s+){0,3}crompton", lower) or "crompton" in lower:
         fan_brand = "Crompton"
-    elif re.search(r"havells\s+(?:\w+\s+){0,3}fan|fan\w*\s+(?:\w+\s+){0,3}havells", lower):
+    elif re.search(r"havells\s+(?:\w+\s+){0,3}(?:fan|pankh)|(?:fan|pankh)\w*\s+(?:\w+\s+){0,3}havells", lower):
         fan_brand = "Havells"
     elif "atomberg" in lower:
         fan_brand = "Atomberg"
@@ -109,14 +116,14 @@ def _extract_heuristically(brief_text: str) -> ClientSpecification:
     # 5. Switch Brand & Grade
     switch_brand = "Schneider"
     if (
-        re.search(r"anchor\s+(?:\w+\s+){0,3}switch|switch\w*\s+(?:\w+\s+){0,3}anchor", lower)
+        re.search(r"anchor\s+(?:\w+\s+){0,3}(?:switch|button)|(?:switch|button)\w*\s+(?:\w+\s+){0,3}anchor", lower)
         or "anchor" in lower
         or "panasonic" in lower
     ):
         switch_brand = "Anchor"
-    elif re.search(r"legrand\s+(?:\w+\s+){0,3}switch|switch\w*\s+(?:\w+\s+){0,3}legrand", lower) or "legrand" in lower:
+    elif re.search(r"legrand\s+(?:\w+\s+){0,3}(?:switch|button)|(?:switch|button)\w*\s+(?:\w+\s+){0,3}legrand", lower) or "legrand" in lower:
         switch_brand = "Legrand"
-    elif re.search(r"havells\s+(?:\w+\s+){0,3}switch|switch\w*\s+(?:\w+\s+){0,3}havells", lower):
+    elif re.search(r"havells\s+(?:\w+\s+){0,3}(?:switch|button)|(?:switch|button)\w*\s+(?:\w+\s+){0,3}havells", lower):
         switch_brand = "Havells"
     elif "schneider" in lower:
         switch_brand = "Schneider"
@@ -133,14 +140,16 @@ def _extract_heuristically(brief_text: str) -> ClientSpecification:
         flooring = "Granite"
     elif "ceramic" in lower:
         flooring = "Ceramic"
-    elif "vitrified" in lower or "tile" in lower or "kajaria" in lower or "somany" in lower:
+    elif "carpet" in lower or "carpet tile" in lower:
+        flooring = "Vitrified Tile"  # Core residential base, with carpet tiles mapped in BOQ
+    elif "vitrified" in lower or "tile" in lower or "kajaria" in lower or "somany" in lower or "farsh" in lower:
         flooring = "Vitrified Tile"
 
     # 7. Paint Preference
     paint = "Luxury Emulsion"
     if "tractor" in lower or "economy" in lower or "budget paint" in lower:
         paint = "Tractor Emulsion"
-    elif "royale" in lower or "luxury" in lower or "washable" in lower:
+    elif "royale" in lower or "luxury" in lower or "washable" in lower or "acrylic emulsion" in lower:
         paint = "Luxury Emulsion"
     elif "premium" in lower:
         paint = "Premium Emulsion"
@@ -155,7 +164,7 @@ def _extract_heuristically(brief_text: str) -> ClientSpecification:
         sanitary = "Jaquar"
 
     return ClientSpecification(
-        project_type="Residential Interior",
+        project_type=project_type,
         preferred_lighting_brand=lighting_brand,
         lighting_wattage=wattage,
         lighting_color_temp=cct,

@@ -75,6 +75,12 @@ class BoqEngine:
 
     def _find_sku(self, trade: str, category: str, **kwargs: Any) -> dict[str, Any] | None:
         """Matches an item in catalog.json based on trade, category, and preferred specifications."""
+        sku_id = kwargs.get("sku_id")
+        if sku_id:
+            for it in self.catalog.get("items", []):
+                if it.get("sku_id") == sku_id:
+                    return it
+
         items = self.catalog.get("items", [])
         candidates = [it for it in items if it.get("trade", "").lower() == trade.lower()]
 
@@ -530,14 +536,14 @@ class BoqEngine:
             for info in cad_takeoff.classified_blocks.values()
             if info["trade"] == "Plumbing - Sanitaryware"
         )
-        if plumb_count == 0:
+        if plumb_count == 0 and cad_takeoff.total_floor_area_sqm > 0:
             plumb_count = 2  # Standard 2BHK bathrooms
 
         ewc_sku = self._find_sku("Plumbing", "Sanitaryware", brand=spec.sanitaryware_brand)
         if not ewc_sku:
             ewc_sku = self._find_sku("Plumbing", "Sanitaryware")
 
-        if ewc_sku:
+        if ewc_sku and plumb_count > 0:
             qty = float(plumb_count)
             rate = ewc_sku.get("unit_rate_inr", 12450.0)
             line_items.append(
@@ -557,6 +563,189 @@ class BoqEngine:
                 )
             )
             item_counter += 1
+
+        # 11. Commercial 2x2 LED Grid Panels
+        grid_light_count = sum(
+            info["count"]
+            for blk, info in cad_takeoff.classified_blocks.items()
+            if any(k in blk.upper() for k in ["GRID_LIGHT", "2X2", "PANEL_LIGHT", "LED_PANEL"])
+        )
+        if grid_light_count == 0 and (
+            "36w" in spec.raw_brief.lower()
+            or "grid panel" in spec.raw_brief.lower()
+            or "2x2" in spec.raw_brief.lower()
+        ):
+            grid_light_count = max(8, int(cad_takeoff.total_floor_area_sqm / 6.0)) if cad_takeoff.total_floor_area_sqm > 0 else 12
+
+        grid_sku = self._find_sku("Electrical", "Lighting", sku_id="LGT-WIP-36W-2X2")
+        if grid_sku and grid_light_count > 0:
+            qty = float(grid_light_count)
+            rate = grid_sku.get("unit_rate_inr", 1250.0)
+            line_items.append(
+                BoqLineItem(
+                    item_no=f"ELE-{item_counter:03d}",
+                    trade="Electrical",
+                    category="Lighting",
+                    description=f"Supply and fixing of {grid_sku.get('model_name')}",
+                    cad_reference=f"{grid_light_count} Grid Light fixtures",
+                    quantity=qty,
+                    unit=grid_sku.get("unit", "Pcs"),
+                    unit_rate_inr=rate,
+                    total_cost_inr=qty * rate,
+                    buy_url=grid_sku.get("buy_url", ""),
+                    audit_notes="Commercial ceiling grid layout",
+                    sku_id=grid_sku.get("sku_id", ""),
+                )
+            )
+            item_counter += 1
+
+        # 12. Magnetic Track Lights
+        track_light_count = sum(
+            info["count"] for blk, info in cad_takeoff.classified_blocks.items() if "TRACK" in blk.upper()
+        )
+        if track_light_count == 0 and "track light" in spec.raw_brief.lower():
+            track_light_count = 6
+
+        track_sku = self._find_sku("Electrical", "Lighting", sku_id="LGT-MAG-TRK-20W")
+        if track_sku and track_light_count > 0:
+            qty = float(track_light_count)
+            rate = track_sku.get("unit_rate_inr", 1850.0)
+            line_items.append(
+                BoqLineItem(
+                    item_no=f"ELE-{item_counter:03d}",
+                    trade="Electrical",
+                    category="Lighting",
+                    description=f"Supply and installation of {track_sku.get('model_name')}",
+                    cad_reference=f"{track_light_count} Magnetic track fixture points",
+                    quantity=qty,
+                    unit=track_sku.get("unit", "Pcs"),
+                    unit_rate_inr=rate,
+                    total_cost_inr=qty * rate,
+                    buy_url=track_sku.get("buy_url", ""),
+                    audit_notes="Accent/Architectural track lighting",
+                    sku_id=track_sku.get("sku_id", ""),
+                )
+            )
+            item_counter += 1
+
+        # 13. Acoustic Mineral Fibre False Ceiling
+        has_acoustic_brief = "acoustic" in spec.raw_brief.lower()
+        has_acoustic_layer = any(
+            "ACOUSTIC" in lyr.upper() or "GRID_CEIL" in lyr.upper() for lyr in cad_takeoff.detected_layers
+        )
+        if (has_acoustic_brief or has_acoustic_layer) and cad_takeoff.total_ceiling_area_sqm > 0:
+            ac_sku = self._find_sku("Finishes", "False Ceiling", sku_id="FIN-CLG-ACO-2X2")
+            if ac_sku:
+                qty = cad_takeoff.total_ceiling_area_sqm
+                rate = ac_sku.get("unit_rate_inr", 850.0)
+                line_items.append(
+                    BoqLineItem(
+                        item_no=f"FIN-{item_counter:03d}",
+                        trade="Finishes",
+                        category="False Ceiling",
+                        description=f"{ac_sku.get('model_name')}",
+                        cad_reference=f"Ceiling Plan Grid: {qty:.1f} sqm",
+                        quantity=qty,
+                        unit=ac_sku.get("unit", "Sq.m"),
+                        unit_rate_inr=rate,
+                        total_cost_inr=qty * rate,
+                        buy_url=ac_sku.get("buy_url", ""),
+                        audit_notes="Commercial acoustic false ceiling (IS 1200 Part 11)",
+                        sku_id=ac_sku.get("sku_id", ""),
+                    )
+                )
+                item_counter += 1
+
+        # 14. Commercial Carpet Tiles
+        has_carpet_brief = "carpet" in spec.raw_brief.lower()
+        carpet_layer_area = sum(
+            area
+            for lyr, area in {**cad_takeoff.hatch_areas_sqm, **cad_takeoff.polyline_areas_sqm}.items()
+            if "CARPET" in lyr.upper()
+        )
+        carpet_area = (
+            carpet_layer_area
+            if carpet_layer_area > 0
+            else (cad_takeoff.total_floor_area_sqm if has_carpet_brief else 0.0)
+        )
+        if carpet_area > 0 and (has_carpet_brief or carpet_layer_area > 0):
+            crpt_sku = self._find_sku("Finishes", "Flooring", sku_id="FIN-CRPT-MOD-500")
+            if crpt_sku:
+                qty = carpet_area
+                rate = crpt_sku.get("unit_rate_inr", 1200.0)
+                line_items.append(
+                    BoqLineItem(
+                        item_no=f"FIN-{item_counter:03d}",
+                        trade="Finishes",
+                        category="Flooring",
+                        description=f"{crpt_sku.get('model_name')}",
+                        cad_reference=f"Carpet Layout Area: {qty:.1f} sqm",
+                        quantity=qty,
+                        unit=crpt_sku.get("unit", "Sq.m"),
+                        unit_rate_inr=rate,
+                        total_cost_inr=qty * rate,
+                        buy_url=crpt_sku.get("buy_url", ""),
+                        audit_notes="Heavy commercial duty nylon carpet tiles",
+                        sku_id=crpt_sku.get("sku_id", ""),
+                    )
+                )
+                item_counter += 1
+
+        # 15. Aluminium Glass Partitions
+        has_part_brief = "aluminium partition" in spec.raw_brief.lower() or "partition" in spec.raw_brief.lower()
+        part_layer_len = sum(
+            seg["length_m"]
+            for seg in cad_takeoff.wall_segments
+            if "PARTITION" in seg.get("layer", "").upper()
+        )
+        part_area = (part_layer_len * wall_height_m) if part_layer_len > 0 else (18.0 if has_part_brief else 0.0)
+        if part_area > 0 and (has_part_brief or part_layer_len > 0):
+            part_sku = self._find_sku("Civil", "Partitions", sku_id="CIV-ALU-GLS-50MM")
+            if part_sku:
+                qty = part_area
+                rate = part_sku.get("unit_rate_inr", 2200.0)
+                line_items.append(
+                    BoqLineItem(
+                        item_no=f"CIV-{item_counter:03d}",
+                        trade="Civil",
+                        category="Partitions",
+                        description=f"{part_sku.get('model_name')}",
+                        cad_reference=f"Partition Linework: {qty:.1f} sqm",
+                        quantity=qty,
+                        unit=part_sku.get("unit", "Sq.m"),
+                        unit_rate_inr=rate,
+                        total_cost_inr=qty * rate,
+                        buy_url=part_sku.get("buy_url", ""),
+                        audit_notes="Internal acoustic office partition framing",
+                        sku_id=part_sku.get("sku_id", ""),
+                    )
+                )
+                item_counter += 1
+
+        # 16. Sunken Slab Drainage & Trap
+        has_sunken = any("SUNKEN" in lyr.upper() for lyr in cad_takeoff.detected_layers) or "sunken" in spec.raw_brief.lower()
+        if has_sunken and cad_takeoff.total_floor_area_sqm > 0:
+            sunken_sku = self._find_sku("Plumbing", "Sanitaryware", sku_id="PLB-SNK-SUN-100")
+            if sunken_sku:
+                qty = 4.0
+                rate = sunken_sku.get("unit_rate_inr", 750.0)
+                line_items.append(
+                    BoqLineItem(
+                        item_no=f"PLB-{item_counter:03d}",
+                        trade="Plumbing",
+                        category="Sanitaryware",
+                        description=f"{sunken_sku.get('model_name')}",
+                        cad_reference="Sunken toilet/balcony drainage nodes",
+                        quantity=qty,
+                        unit=sunken_sku.get("unit", "Pcs"),
+                        unit_rate_inr=rate,
+                        total_cost_inr=qty * rate,
+                        buy_url=sunken_sku.get("buy_url", ""),
+                        audit_notes="Multi-floor sunken slab drainage trap (IS 1200 Part 16)",
+                        sku_id=sunken_sku.get("sku_id", ""),
+                    )
+                )
+                item_counter += 1
 
         grand_total = sum(it.total_cost_inr for it in line_items)
 

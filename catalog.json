@@ -641,6 +641,168 @@
       "gst_percent": 18,
       "vendor": "Moglix India",
       "buy_url": "https://business.moglix.com/p/hindware-over-counter-basin"
+    },
+    {
+      "sku_id": "LGT-WIP-36W-2X2",
+      "trade": "Electrical",
+      "category": "Lighting",
+      "sub_category": "Grid Panel",
+      "brand": "Wipro",
+      "model_name": "Garnet 36W 600x600 2x2 Recessed LED Backlit Panel (6500K)",
+      "specifications": {
+        "wattage": 36,
+        "dimensions_mm": "595x595x35",
+        "lumens": 3600,
+        "color_temp": "6500K",
+        "mounting": "Grid Recessed"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 1250.0,
+      "hsn_code": "9405",
+      "gst_percent": 18,
+      "vendor": "Moglix India",
+      "buy_url": "https://business.moglix.com/p/wipro-garnet-36w-2x2-panel"
+    },
+    {
+      "sku_id": "LGT-MAG-TRK-20W",
+      "trade": "Electrical",
+      "category": "Lighting",
+      "sub_category": "Track Light",
+      "brand": "Philips",
+      "model_name": "GreenSpace 20W 3000K Magnetic Track Linear Light Fixture",
+      "specifications": {
+        "wattage": 20,
+        "color_temp": "3000K",
+        "lumens": 1600,
+        "beam_angle": "36 Deg",
+        "mounting": "Magnetic Track"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 1850.0,
+      "hsn_code": "9405",
+      "gst_percent": 18,
+      "vendor": "Amazon Business India",
+      "buy_url": "https://www.amazon.in/dp/B09MTRK20W"
+    },
+    {
+      "sku_id": "FIN-CLG-ACO-2X2",
+      "trade": "Finishes",
+      "category": "False Ceiling",
+      "sub_category": "Acoustic Tile",
+      "brand": "Armstrong",
+      "model_name": "Fine Fissured 600x600x15mm Acoustic Mineral Fibre Ceiling Tile with T-Grid",
+      "specifications": {
+        "dimensions_mm": "600x600x15",
+        "nrc": 0.55,
+        "edge": "Square Lay-in",
+        "grid_system": "15mm Silhouette"
+      },
+      "unit": "Sq.M",
+      "unit_rate_inr": 850.0,
+      "hsn_code": "6806",
+      "gst_percent": 18,
+      "vendor": "Industrybuying",
+      "buy_url": "https://www.industrybuying.com/ceiling-tiles-armstrong"
+    },
+    {
+      "sku_id": "FIN-CRPT-MOD-500",
+      "trade": "Finishes",
+      "category": "Flooring",
+      "sub_category": "Carpet Tile",
+      "brand": "Interface",
+      "model_name": "Modular Commercial Nylon Tufted Carpet Tiles 500x500mm with Cushion Backing",
+      "specifications": {
+        "dimensions_mm": "500x500",
+        "thickness_mm": 6.5,
+        "fibre": "100% Solution Dyed Nylon",
+        "backing": "CushionBac"
+      },
+      "unit": "Sq.M",
+      "unit_rate_inr": 1200.0,
+      "hsn_code": "5703",
+      "gst_percent": 18,
+      "vendor": "IndiaMART Verified Supplier",
+      "buy_url": "https://dir.indiamart.com/impcat/carpet-tiles.html"
+    },
+    {
+      "sku_id": "CIV-ALU-GLS-50MM",
+      "trade": "Civil",
+      "category": "Partitions",
+      "sub_category": "Aluminium Glass",
+      "brand": "Jindal Aluminium",
+      "model_name": "50mm Powder Coated Heavy Aluminium Partition with 10mm Toughened Clear Glass",
+      "specifications": {
+        "section_size_mm": "50x25",
+        "glass_thickness_mm": 10,
+        "finish": "Anodized/Powder Coated",
+        "glass_type": "Toughened"
+      },
+      "unit": "Sq.M",
+      "unit_rate_inr": 2200.0,
+      "hsn_code": "7610",
+      "gst_percent": 18,
+      "vendor": "Moglix India",
+      "buy_url": "https://business.moglix.com/p/aluminium-glass-partition"
+    },
+    {
+      "sku_id": "FIN-TIL-ANT-SKID",
+      "trade": "Finishes",
+      "category": "Flooring",
+      "sub_category": "Tile",
+      "brand": "Kajaria",
+      "model_name": "Gres Tough 300x300mm Matte Anti-Skid Ceramic Floor Tile",
+      "specifications": {
+        "dimensions_mm": "300x300",
+        "finish": "Matte Anti-Skid",
+        "thickness_mm": 8.5,
+        "application": "Bathrooms/Balconies"
+      },
+      "unit": "Sq.M",
+      "unit_rate_inr": 580.0,
+      "hsn_code": "6907",
+      "gst_percent": 18,
+      "vendor": "Kajaria Ceramics Direct",
+      "buy_url": "https://www.kajariaceramics.com/product/anti-skid-tiles"
+    },
+    {
+      "sku_id": "PLB-SNK-SUN-100",
+      "trade": "Plumbing",
+      "category": "Sanitaryware",
+      "sub_category": "Drainage",
+      "brand": "Supreme",
+      "model_name": "Sunken Slab Multi-Floor Trap with Stainless Steel Grating 110mm",
+      "specifications": {
+        "pipe_dia_mm": 110,
+        "material": "PVC-U with Stainless Steel Grating",
+        "inlet_count": 3,
+        "application": "Sunken Toilet/Balcony"
+      },
+      "unit": "Pcs",
+      "unit_rate_inr": 750.0,
+      "hsn_code": "3917",
+      "gst_percent": 18,
+      "vendor": "Industrybuying",
+      "buy_url": "https://www.industrybuying.com/pvc-multi-trap"
+    },
+    {
+      "sku_id": "FIN-PNT-EXT-WTH",
+      "trade": "Finishes",
+      "category": "Painting",
+      "sub_category": "Exterior Paint",
+      "brand": "Asian Paints",
+      "model_name": "Apex Ultima All-Weather Exterior High-Sheen Acrylic Emulsion",
+      "specifications": {
+        "type": "Exterior Acrylic Emulsion",
+        "sheen": "Soft Sheen",
+        "warranty_years": 7,
+        "coverage_sqm_per_ltr": 5.5
+      },
+      "unit": "Sq.M",
+      "unit_rate_inr": 165.0,
+      "hsn_code": "3209",
+      "gst_percent": 18,
+      "vendor": "Asian Paints Direct",
+      "buy_url": "https://www.asianpaints.com/products/paints-and-textures/exterior-walls/apex-ultima.html"
     }
   ]
 }

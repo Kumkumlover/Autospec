@@ -217,6 +217,11 @@ class CadParser:
             r"COVE",
             r"STRIP",
             r"PANEL_LIGHT",
+            r"GRID_LIGHT",
+            r"2X2",
+            r"TRACK_LIGHT",
+            r"TRACK",
+            r"LED_PANEL",
             r"SPOT",
             r"LGT",
             r"CEILING_LIGHT",
@@ -253,11 +258,28 @@ class CadParser:
             r"TAP",
             r"FAUCET",
             r"URINAL",
+            r"TRAP",
+            r"FLOOR_TRAP",
+            r"SUNKEN",
             r"LAVA",
             r"FREG",
             r"INODORO",
             r"BANO",
             r"DUCHA",
+        ],
+        "HVAC - Mechanical": [
+            r"DIFFUSER",
+            r"AC_",
+            r"FCU",
+            r"GRILL",
+            r"HVAC",
+            r"CASSETTE",
+            r"RETURN_AIR",
+        ],
+        "Partitions & Architectural": [
+            r"PARTITION",
+            r"GLASS_WALL",
+            r"ALU_PARTITION",
         ],
         "Openings - Doors & Windows": [
             r"DOOR",
@@ -272,6 +294,7 @@ class CadParser:
             r"VENTANA",
             r"VENTAN",
             r"SLIDING",
+            r"FRENCH",
         ],
         "Furniture & Equipment": [
             r"BED",
@@ -284,6 +307,9 @@ class CadParser:
             r"COCINA",
             r"ESTUFA",
             r"NEV",
+            r"DESK",
+            r"CHAIR",
+            r"WORKSTATION",
         ],
     }
 
@@ -300,10 +326,64 @@ class CadParser:
             r"GULV",
             r"PAVIMENTO",
             r"SUELO",
+            r"_CARPET AREA",
+            r"_CARPET",
+            r"_FLOOR",
+            r"_BUILTUP",
+            r"_PROPOSED WORK",
+            r"_RESIMAIN",
+            r"_COMMERCIAL",
+            r"CARPET_FLOOR",
+            r"CARPET",
+            r"OFFICE_FLOOR",
         ],
-        "Ceiling": [r"CEIL", r"A-CLNG", r"FALSE_CEIL", r"GYPSUM", r"POP", r"TECHO", r"PLAFON"],
-        "Walls": [r"WALL", r"A-WALL", r"CIVIL_WALL", r"BRICK", r"MASONRY", r"PARTITION", r"MURO", r"PARED"],
-        "Openings": [r"DOOR", r"A-DOOR", r"WINDOW", r"A-GLAZ", r"OPENING", r"VENT", r"PUERT", r"VENTAN"],
+        "Ceiling": [
+            r"CEIL",
+            r"A-CLNG",
+            r"FALSE_CEIL",
+            r"GYPSUM",
+            r"POP",
+            r"TECHO",
+            r"PLAFON",
+            r"GRID_LIGHT",
+            r"GRID_CEILING",
+            r"ACOUSTIC_CEIL",
+            r"ACOUSTIC",
+            r"A-CLNG-GRID",
+        ],
+        "Walls": [
+            r"WALL",
+            r"A-WALL",
+            r"CIVIL_WALL",
+            r"BRICK",
+            r"MASONRY",
+            r"PARTITION",
+            r"MURO",
+            r"PARED",
+            r"_WALL",
+            r"_MARGINLINE",
+            r"_COMWALL",
+            r"PARTITION_GLASS",
+            r"ALU_PARTITION",
+            r"GLASS_PARTITION",
+            r"ELEC_NEW",
+        ],
+        "Openings": [
+            r"DOOR",
+            r"A-DOOR",
+            r"WINDOW",
+            r"A-GLAZ",
+            r"OPENING",
+            r"VENT",
+            r"PUERT",
+            r"VENTAN",
+            r"_DOOR",
+            r"_WINDOW",
+            r"_VENT",
+            r"_OPENING",
+            r"FRENCH_DOOR",
+            r"SLIDING_DOOR",
+        ],
     }
 
     def __init__(
@@ -406,15 +486,15 @@ class CadParser:
     def _categorize_layer_for_linework(self, layer_name: str) -> str:
         """Categorizes an AutoCAD layer into base architectural linework groups."""
         u = layer_name.upper()
-        if re.search(r"WALL|MURO|PARED|BRICK|COL|PILAR|STRUCTURE", u):
+        if re.search(r"WALL|MURO|PARED|BRICK|COL|PILAR|STRUCTURE|_MARGINLINE|_WALL|PARTITION", u):
             return "walls"
-        elif re.search(r"DOOR|PUERT|ENTRY", u):
+        elif re.search(r"DOOR|PUERT|ENTRY|_DOOR", u):
             return "doors"
-        elif re.search(r"WINDOW|VENTAN|GLAZ|^W$", u):
+        elif re.search(r"WINDOW|VENTAN|GLAZ|^W$|_WINDOW|_VENT", u):
             return "windows"
         elif re.search(r"STAIR|ESCAL|ELEV|ASCENS|LIFT|CORE", u):
             return "stairs"
-        elif re.search(r"FURN|MUEBL|BED|CAMA|WC|BANO|EQUIP|KITCH|COCIN|SOFA|TABLE|MESA", u):
+        elif re.search(r"FURN|MUEBL|BED|CAMA|WC|BANO|EQUIP|KITCH|COCIN|SOFA|TABLE|MESA|DESK|CHAIR", u):
             return "furniture"
         elif re.search(r"DIM|COTA|TEXT|ANNO", u):
             return "dimensions"
@@ -435,7 +515,7 @@ class CadParser:
             except ValueError:
                 pass
 
-        # Check dimension patterns like 1000X2100, 3X7, 1200X1500
+        # Check dimension patterns like 1000X2100, 3X7, 1200X1500, 3000X2400
         dim_match = re.search(r"(\d+)[X_](\d+)", upper_name)
         if dim_match:
             d1 = float(dim_match.group(1))
@@ -444,6 +524,12 @@ class CadParser:
                 return d1 * 0.001, d2 * 0.001, "Name mm"
             elif d1 <= 15 and d2 <= 15:  # in feet (e.g. 3x7)
                 return d1 * 0.3048, d2 * 0.3048, "Name ft"
+
+        # Check for large French doors / Balcony sliding doors (> 3.0 sq.m)
+        if re.search(r"FRENCH|BALCONY|PATIO", upper_name) or (
+            "SLIDING" in upper_name and ("LARGE" in upper_name or "BALC" in upper_name or "3000" in upper_name or "3M" in upper_name)
+        ):
+            return 3.0, 2.4, "Large French / Balcony Sliding Door (3.0m x 2.4m)"
 
         # Standard residential architectural opening norms:
         if re.search(r"DOOR|^D\d|MAIN_DOOR|PUERT", upper_name):
@@ -508,17 +594,22 @@ class CadParser:
                 except Exception:
                     pass
 
-        # 1. Parse Block References (INSERT entities)
+        # 1. Parse Block References (INSERT entities) with Recursive Nested Block Traversal
         opening_counter = 1
-        for insert in msp.query("INSERT"):
+
+        def _process_insert(insert: Any, parent_x: float = 0.0, parent_y: float = 0.0, depth: int = 0) -> None:
+            nonlocal opening_counter
+            if depth > 5:
+                return
+
             raw_name = insert.dxf.name
             clean_name = raw_name.strip()
             block_counts[clean_name] = block_counts.get(clean_name, 0) + 1
 
-            # Extract block attributes if present
             attrib_dict: dict[str, str] = {}
-            for attrib in insert.attribs:
-                attrib_dict[attrib.dxf.tag.upper()] = attrib.dxf.text
+            if hasattr(insert, "attribs"):
+                for attrib in insert.attribs:
+                    attrib_dict[attrib.dxf.tag.upper()] = attrib.dxf.text
 
             trade = self._classify_block_name(clean_name)
             if clean_name not in classified_blocks:
@@ -529,13 +620,16 @@ class CadParser:
                 }
             classified_blocks[clean_name]["count"] += 1
 
-            # Record block instance geometry
+            ins_pt = getattr(insert.dxf, "insert", None)
+            ins_x = (ins_pt.x if ins_pt else 0.0) + parent_x
+            ins_y = (ins_pt.y if ins_pt else 0.0) + parent_y
+
             block_instances.append(
                 {
                     "name": clean_name,
                     "trade": trade,
-                    "x": round(insert.dxf.insert.x, 3),
-                    "y": round(insert.dxf.insert.y, 3),
+                    "x": round(ins_x, 3),
+                    "y": round(ins_y, 3),
                     "rotation": getattr(insert.dxf, "rotation", 0.0),
                     "layer": insert.dxf.layer,
                     "attributes": attrib_dict,
@@ -564,6 +658,46 @@ class CadParser:
                 )
                 opening_counter += 1
 
+            # Traverse nested block definitions recursively
+            try:
+                blk_def = doc.blocks.get(raw_name)
+                if blk_def:
+                    for child_ins in blk_def.query("INSERT"):
+                        _process_insert(child_ins, parent_x=ins_x, parent_y=ins_y, depth=depth + 1)
+            except Exception:
+                pass
+
+        for insert in msp.query("INSERT"):
+            _process_insert(insert)
+
+        # 1b. Exploded Geometry Detection: Circles on electrical/lighting layers
+        for circle in msp.query("CIRCLE"):
+            c_layer = circle.dxf.layer.upper()
+            c_rad_m = circle.dxf.radius * linear_scale
+            if 0.04 <= c_rad_m <= 0.40 and (
+                "LIGHT" in c_layer or "ELEC" in c_layer or "LGT" in c_layer or "SPOT" in c_layer or "LAMP" in c_layer
+            ):
+                exp_name = f"EXPLODED_LIGHT_{circle.dxf.layer}"
+                block_counts[exp_name] = block_counts.get(exp_name, 0) + 1
+                if exp_name not in classified_blocks:
+                    classified_blocks[exp_name] = {
+                        "count": 0,
+                        "trade": "Electrical - Lighting",
+                        "attributes": {"radius_m": f"{c_rad_m:.2f}"},
+                    }
+                classified_blocks[exp_name]["count"] += 1
+                block_instances.append(
+                    {
+                        "name": exp_name,
+                        "trade": "Electrical - Lighting",
+                        "x": round(circle.dxf.center.x, 3),
+                        "y": round(circle.dxf.center.y, 3),
+                        "rotation": 0.0,
+                        "layer": circle.dxf.layer,
+                        "attributes": {},
+                    }
+                )
+
         # 2. Parse HATCH Entities
         for hatch in msp.query("HATCH"):
             layer = hatch.dxf.layer.upper()
@@ -583,13 +717,25 @@ class CadParser:
             if area_sqm > 0:
                 hatch_areas_sqm[layer] = hatch_areas_sqm.get(layer, 0.0) + area_sqm
 
-        # 3. Parse Closed LWPOLYLINE / POLYLINE Entities (Rooms, Walls, Ceilings)
+        # 3. Parse Closed & Unclosed LWPOLYLINE / POLYLINE Entities (Rooms, Walls, Ceilings)
         wall_length_units = 0.0
         for poly in msp.query("LWPOLYLINE POLYLINE"):
             layer = poly.dxf.layer.upper()
-            is_closed = poly.is_closed if hasattr(poly, "is_closed") else poly.dxf.flags & 1
+            is_closed = getattr(poly, "is_closed", False) or bool(poly.dxf.flags & 1)
 
-            pts = poly.get_points(format="xy") if hasattr(poly, "get_points") else []
+            # Flatten 3D or 2D coordinates to (x, y) float tuples
+            pts: list[tuple[float, float]] = []
+            if hasattr(poly, "get_points"):
+                try:
+                    pts = [(float(p[0]), float(p[1])) for p in poly.get_points(format="xy")]
+                except Exception:
+                    pass
+            elif hasattr(poly, "vertices"):
+                try:
+                    pts = [(float(v.dxf.location.x), float(v.dxf.location.y)) for v in poly.vertices]
+                except Exception:
+                    pass
+
             if len(pts) >= 2:
                 # Accumulate perimeter / length for wall calculations
                 for i in range(len(pts) - 1):
@@ -609,7 +755,17 @@ class CadParser:
                             }
                         )
 
-            if is_closed and len(pts) >= 3:
+            # Check gap between first and last vertex for unclosed polylines
+            dist_gap_m = 0.0
+            if len(pts) >= 2:
+                dist_gap_m = math.hypot(pts[0][0] - pts[-1][0], pts[0][1] - pts[-1][1]) * linear_scale
+                # If gap <= 0.20m, treat as closed drafting polygon
+                if dist_gap_m <= 0.20:
+                    is_closed = True
+
+            # Calculate area gracefully for closed loops or floor/ceiling layers
+            should_calc_area = is_closed or self._matches_layer_category(layer, "Flooring") or self._matches_layer_category(layer, "Ceiling")
+            if len(pts) >= 3 and should_calc_area:
                 try:
                     raw_area = abs(ezdxf.math.area(pts))
                     area_sqm = raw_area * area_scale

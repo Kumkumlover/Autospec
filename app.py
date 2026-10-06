@@ -94,9 +94,18 @@ with st.sidebar:
         help="Upload an open DXF vector file or an AutoCAD DWG binary file",
     )
 
+    st.markdown("#### 🎯 Benchmark Real-World Cases")
+    uc_col1, uc_col2 = st.columns(2)
+    use_uc1 = uc_col1.button("🏢 1. Mid-Market 2BHK", use_container_width=True)
+    use_uc2 = uc_col2.button("🏡 2. Custom Villa", use_container_width=True)
+    uc_col3, uc_col4 = st.columns(2)
+    use_uc3 = uc_col3.button("🏬 3. Commercial Office", use_container_width=True)
+    use_uc4 = uc_col4.button("📜 4. PreDCR Sanction", use_container_width=True)
+
+    st.markdown("#### 📁 CAD Library Samples")
     sample_col1, sample_col2 = st.columns(2)
-    use_sample_2bhk = sample_col1.button("📂 2BHK Plan", use_container_width=True)
-    use_sample_house = sample_col2.button("🏡 2-Story Villa", use_container_width=True)
+    use_sample_2bhk = sample_col1.button("📂 Synthetic 2BHK", use_container_width=True)
+    use_sample_house = sample_col2.button("🏡 2-Story DWG", use_container_width=True)
     sample_col3, sample_col4 = st.columns(2)
     use_sample_apt = sample_col3.button("🏢 Apartment-1", use_container_width=True)
     use_sample_20x55 = sample_col4.button("🏘️ 20x55 House", use_container_width=True)
@@ -204,6 +213,63 @@ if uploaded_file is not None:
             st.session_state["is_dwg_converted"] = False
             st.session_state["_last_uploaded_name"] = uploaded_file.name
             st.sidebar.success(f"Loaded DXF: {uploaded_file.name}")
+
+if use_uc1:
+    p = "samples/use_case_1_2bhk_rcp.dxf"
+    if not os.path.exists(p):
+        from test_cases_generator import generate_use_case_1_2bhk_rcp
+        generate_use_case_1_2bhk_rcp(p)
+    st.session_state["cad_path"] = p
+    st.session_state["display_name"] = "use_case_1_2bhk_rcp.dxf"
+    st.session_state["is_dwg_converted"] = False
+    st.session_state["client_brief"] = (
+        "Client wants 12W 3000K warm white recessed LED downlights in living and bedrooms, "
+        "1200mm BLDC energy-efficient ceiling fans (Havells/Atomberg), modular switches from Schneider, "
+        "and 600x600mm vitrified tiles."
+    )
+    st.rerun()
+
+if use_uc2:
+    p = "samples/use_case_2_villa_glazing.dxf"
+    if not os.path.exists(p):
+        from test_cases_generator import generate_use_case_2_villa_glazing
+        generate_use_case_2_villa_glazing(p)
+    st.session_state["cad_path"] = p
+    st.session_state["display_name"] = "use_case_2_villa_glazing.dxf"
+    st.session_state["is_dwg_converted"] = False
+    st.session_state["client_brief"] = (
+        "Use premium 15W dimmable warm downlights, magnetic track lights in living room, "
+        "premium Jaquar sanitaryware, and Asian Paints Royale acrylic emulsion on all internal plaster."
+    )
+    st.rerun()
+
+if use_uc3:
+    p = "samples/use_case_3_commercial_office.dxf"
+    if not os.path.exists(p):
+        from test_cases_generator import generate_use_case_3_commercial_office
+        generate_use_case_3_commercial_office(p)
+    st.session_state["cad_path"] = p
+    st.session_state["display_name"] = "use_case_3_commercial_office.dxf"
+    st.session_state["is_dwg_converted"] = False
+    st.session_state["client_brief"] = (
+        "Provide 36W 600x600 LED ceiling grid panels, 2x2 acoustic ceiling tiles, "
+        "2-inch aluminium partition framing, and commercial carpet tiles."
+    )
+    st.rerun()
+
+if use_uc4:
+    p = "samples/use_case_4_predcr_sanction.dxf"
+    if not os.path.exists(p):
+        from test_cases_generator import generate_use_case_4_predcr_sanction
+        generate_use_case_4_predcr_sanction(p)
+    st.session_state["cad_path"] = p
+    st.session_state["display_name"] = "use_case_4_predcr_sanction.dxf"
+    st.session_state["is_dwg_converted"] = False
+    st.session_state["client_brief"] = (
+        "Municipal single-window sanction plan (AutoDCR / PreDCR format). "
+        "Standard vitrified tile flooring, modular electrical switches, and luxury emulsion paint."
+    )
+    st.rerun()
 
 if use_sample_2bhk:
     sample_path = "samples/sample_2bhk_plan.dxf"
