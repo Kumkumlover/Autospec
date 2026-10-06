@@ -163,8 +163,14 @@ with st.sidebar:
             '<span class="status-badge status-fallback">○ Offline Heuristic Mode Active</span>', unsafe_allow_html=True
         )
 
-    st.divider()
     run_btn = st.button("🚀 Generate Full BOQ Estimate", type="primary", use_container_width=True)
+    if run_btn:
+        st.session_state.pop("_last_takeoff_key", None)
+        st.session_state.pop("_last_spec_key", None)
+        st.session_state.pop("_last_boq_key", None)
+        st.session_state.pop("takeoff", None)
+        st.session_state.pop("spec", None)
+        st.session_state.pop("boq_result", None)
 
 # -----------------------------------------------------------------------------
 # SESSION STATE INITIALIZATION
@@ -200,10 +206,15 @@ if uploaded_file is not None:
         st.session_state["is_raster_converted"] = False
         st.session_state["is_pdf_converted"] = False
         st.session_state["uploaded_image_preview"] = None
+        st.session_state.pop("takeoff", None)
+        st.session_state.pop("_last_takeoff_key", None)
+        st.session_state.pop("boq_result", None)
+        st.session_state.pop("_last_boq_key", None)
 
         if ext == ".dwg":
             try:
-                converted_dxf = convert_dwg_to_dxf(saved_path)
+                with st.spinner(f"⚙️ Converting AutoCAD DWG '{uploaded_file.name}' via local LibreDWG engine..."):
+                    converted_dxf = convert_dwg_to_dxf(saved_path)
                 st.session_state["cad_path"] = converted_dxf
                 st.session_state["display_name"] = uploaded_file.name
                 st.session_state["is_dwg_converted"] = True
@@ -218,7 +229,8 @@ if uploaded_file is not None:
             try:
                 from raster_converter import convert_image_to_dxf
 
-                converted_dxf = convert_image_to_dxf(saved_path)
+                with st.spinner(f"⚙️ Vectorizing floor plan image '{uploaded_file.name}' locally..."):
+                    converted_dxf = convert_image_to_dxf(saved_path)
                 st.session_state["cad_path"] = converted_dxf
                 st.session_state["display_name"] = uploaded_file.name
                 st.session_state["is_raster_converted"] = True
@@ -234,7 +246,8 @@ if uploaded_file is not None:
             try:
                 from raster_converter import convert_pdf_to_dxf
 
-                converted_dxf = convert_pdf_to_dxf(saved_path)
+                with st.spinner(f"⚙️ Vectorizing architectural PDF '{uploaded_file.name}' locally..."):
+                    converted_dxf = convert_pdf_to_dxf(saved_path)
                 st.session_state["cad_path"] = converted_dxf
                 st.session_state["display_name"] = uploaded_file.name
                 st.session_state["is_pdf_converted"] = True
@@ -259,6 +272,7 @@ if uploaded_file is not None:
             st.session_state["display_name"] = uploaded_file.name
             st.session_state["_last_uploaded_name"] = uploaded_file.name
             st.sidebar.success(f"Loaded DXF: {uploaded_file.name}")
+        st.rerun()
 
 if use_uc1:
     p = "samples/use_case_1_2bhk_rcp.dxf"
@@ -409,21 +423,45 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Parse CAD and Brief
-cad_parser = CadParser(default_units=drawing_units, wall_height_m=wall_height, wall_thickness_m=wall_thickness)
-try:
-    takeoff = cad_parser.parse_cad_file(st.session_state["cad_path"], filename=st.session_state.get("display_name"))
-except Exception as e:
-    st.error(f"Error parsing CAD file: {e}")
-    st.stop()
+# Parse CAD and Brief with Session Caching
+cache_key = f"{st.session_state['cad_path']}_{drawing_units}_{wall_height}_{wall_thickness}"
+active_name = st.session_state.get("display_name", os.path.basename(st.session_state["cad_path"]))
 
-spec = parse_client_brief(
-    st.session_state["client_brief"],
-    api_key=anthropic_api_key,
-    groq_api_key=groq_api_key,
-)
-boq_engine = BoqEngine()
-boq_result = boq_engine.generate_boq(takeoff, spec, wall_height_m=wall_height, wall_thickness_m=wall_thickness)
+if st.session_state.get("_last_takeoff_key") != cache_key or "takeoff" not in st.session_state:
+    with st.spinner(f"📐 Parsing CAD vector takeoff for {active_name}..."):
+        cad_parser = CadParser(default_units=drawing_units, wall_height_m=wall_height, wall_thickness_m=wall_thickness)
+        try:
+            takeoff = cad_parser.parse_cad_file(st.session_state["cad_path"], filename=st.session_state.get("display_name"))
+            st.session_state["takeoff"] = takeoff
+            st.session_state["_last_takeoff_key"] = cache_key
+        except Exception as e:
+            st.error(f"Error parsing CAD file: {e}")
+            st.stop()
+else:
+    takeoff = st.session_state["takeoff"]
+
+spec_key = f"{st.session_state['client_brief']}_{anthropic_api_key}_{groq_api_key}"
+if st.session_state.get("_last_spec_key") != spec_key or "spec" not in st.session_state:
+    with st.spinner("🤖 Interpreting client specifications & trade requirements..."):
+        spec = parse_client_brief(
+            st.session_state["client_brief"],
+            api_key=anthropic_api_key,
+            groq_api_key=groq_api_key,
+        )
+        st.session_state["spec"] = spec
+        st.session_state["_last_spec_key"] = spec_key
+else:
+    spec = st.session_state["spec"]
+
+boq_key = f"{cache_key}_{spec_key}"
+if st.session_state.get("_last_boq_key") != boq_key or "boq_result" not in st.session_state:
+    with st.spinner("📊 Compiling statutory IS 1200 deductions & B2B procurement BOQ..."):
+        boq_engine = BoqEngine()
+        boq_result = boq_engine.generate_boq(takeoff, spec, wall_height_m=wall_height, wall_thickness_m=wall_thickness)
+        st.session_state["boq_result"] = boq_result
+        st.session_state["_last_boq_key"] = boq_key
+else:
+    boq_result = st.session_state["boq_result"]
 
 # -----------------------------------------------------------------------------
 # WORKFLOW TABS

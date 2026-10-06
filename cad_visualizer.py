@@ -217,13 +217,36 @@ class CadVisualizer:
                     )
                 )
 
+        # 6. General / Unclassified Plan Linework (Layer 0, Geometry, etc.)
+        other_paths = linework.get("other", [])
+        if other_paths and (not linework.get("walls") or len(linework.get("walls")) < 10):
+            o_xs, o_ys = self._flatten_paths_to_xy(other_paths[:8000])
+            if o_xs:
+                fig.add_trace(
+                    go.Scatter(
+                        x=o_xs,
+                        y=o_ys,
+                        mode="lines",
+                        line={"color": wall_color, "width": 1.6},
+                        name=f"🏛️ Plan Linework ({min(len(other_paths), 8000)} segs)",
+                        legendgroup="Base Linework",
+                        legendgrouptitle_text="🏛️ Architectural Linework",
+                        hoverinfo="text",
+                        hovertext="<b>Architectural Plan Geometry</b>",
+                    )
+                )
+
         # =====================================================================
         # TIER B: AUTOSPEC TAKEOFF OVERLAYS & HIGHLIGHTS
         # =====================================================================
         if focus_mode != "linework_only":
             # 1. Floor & Room Boundaries
             if visible_trades is None or any("Floor" in t or "Room" in t for t in visible_trades):
-                for idx, room in enumerate(room_polygons):
+                sorted_rooms = sorted(room_polygons, key=lambda r: r.get("area_sqm", 0.0), reverse=True)
+                top_rooms = sorted_rooms[:20]
+                remaining_rooms = sorted_rooms[20:]
+
+                for idx, room in enumerate(top_rooms):
                     pts = room.get("points", [])
                     if len(pts) >= 3:
                         rx = [p[0] for p in pts] + [pts[0][0]]
@@ -245,6 +268,33 @@ class CadVisualizer:
                                 showlegend=(idx == 0),
                                 hovertext=f"<b>Measured Floor Area</b><br>Layer: {layer}<br>Area: {area:.2f} m² ({(area * 10.764):.1f} sq.ft)",
                                 hoverinfo="text",
+                            )
+                        )
+
+                if remaining_rooms:
+                    rem_xs: list[float | None] = []
+                    rem_ys: list[float | None] = []
+                    for room in remaining_rooms:
+                        pts = room.get("points", [])
+                        if len(pts) >= 3:
+                            for p in pts:
+                                rem_xs.append(p[0])
+                                rem_ys.append(p[1])
+                            rem_xs.append(pts[0][0])
+                            rem_ys.append(pts[0][1])
+                            rem_xs.append(None)
+                            rem_ys.append(None)
+                    if rem_xs:
+                        fig.add_trace(
+                            go.Scatter(
+                                x=rem_xs,
+                                y=rem_ys,
+                                mode="lines",
+                                line={"color": "#27AE60", "width": 1.0, "dash": "dot"},
+                                name=f"📐 Additional Floor Polygons ({len(remaining_rooms)})",
+                                legendgroup="Takeoff Highlights",
+                                showlegend=False,
+                                hoverinfo="skip",
                             )
                         )
 
@@ -368,32 +418,46 @@ class CadVisualizer:
         # =====================================================================
         # CAMERA & FOCUS BOUNDS (Auto-focus strictly to building geometry)
         # =====================================================================
-        focus_xs, focus_ys = [], []
-        # Focus primarily on walls and building linework
-        if linework.get("walls"):
-            for p in linework["walls"]:
-                for pt in p:
-                    focus_xs.append(pt[0])
-                    focus_ys.append(pt[1])
-        elif wall_segments:
-            for w in wall_segments:
-                focus_xs.extend([w["x1"], w["x2"]])
-                focus_ys.extend([w["y1"], w["y2"]])
-
-        if not focus_xs and block_instances:
-            focus_xs = [b["x"] for b in block_instances]
-            focus_ys = [b["y"] for b in block_instances]
-
-        if focus_xs and focus_ys:
-            min_x, max_x = min(focus_xs), max(focus_xs)
-            min_y, max_y = min(focus_ys), max(focus_ys)
+        if bounding_box and bounding_box.get("max_x", 0.0) > bounding_box.get("min_x", 0.0):
+            min_x = bounding_box["min_x"]
+            max_x = bounding_box["max_x"]
+            min_y = bounding_box["min_y"]
+            max_y = bounding_box["max_y"]
             pad_x = max(2.0, (max_x - min_x) * 0.08)
             pad_y = max(2.0, (max_y - min_y) * 0.08)
             range_x = [min_x - pad_x, max_x + pad_x]
             range_y = [min_y - pad_y, max_y + pad_y]
         else:
-            range_x = [-10, 50]
-            range_y = [-10, 50]
+            focus_xs, focus_ys = [], []
+            if linework.get("walls"):
+                for p in linework["walls"][:500]:
+                    for pt in p:
+                        focus_xs.append(pt[0])
+                        focus_ys.append(pt[1])
+            elif linework.get("other"):
+                for p in linework["other"][:500]:
+                    for pt in p:
+                        focus_xs.append(pt[0])
+                        focus_ys.append(pt[1])
+            elif wall_segments:
+                for w in wall_segments:
+                    focus_xs.extend([w["x1"], w["x2"]])
+                    focus_ys.extend([w["y1"], w["y2"]])
+
+            if not focus_xs and block_instances:
+                focus_xs = [b["x"] for b in block_instances]
+                focus_ys = [b["y"] for b in block_instances]
+
+            if focus_xs and focus_ys:
+                min_x, max_x = min(focus_xs), max(focus_xs)
+                min_y, max_y = min(focus_ys), max(focus_ys)
+                pad_x = max(2.0, (max_x - min_x) * 0.08)
+                pad_y = max(2.0, (max_y - min_y) * 0.08)
+                range_x = [min_x - pad_x, max_x + pad_x]
+                range_y = [min_y - pad_y, max_y + pad_y]
+            else:
+                range_x = [-10, 50]
+                range_y = [-10, 50]
 
         unit_label = getattr(self.takeoff, "units", "m").upper()
         file_name = getattr(self.takeoff, "file_name", "CAD Drawing")

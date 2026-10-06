@@ -23,10 +23,18 @@ venv/
 *.dxf.bak
 *_converted.dxf
 samples/*_house_plan.dxf
+samples/*/*.dxf
+samples/*.dxf
+!samples/sample_2bhk_plan.dxf
+!samples/two_story_house.dxf
+!samples/use_case_*.dxf
+!samples/edge_cases_geometry.dxf
+!samples/real_floorplan_jscad.dxf
 cropped_key.png
 *.zip
 Test 1.pdf
 Test 2.webp
+samples/**/001 (16).dwg
 
 # Local standalone binaries
 tools/

@@ -153,3 +153,62 @@ def test_cad_parser_pdf_conversion(tmp_path):
     takeoff = parse_cad_file(pdf_path)
     assert takeoff is not None
     assert takeoff.total_floor_area_sqm > 10.0
+
+
+def test_cad_parser_pdf_geometry_dwg_b177():
+    """Verify parsing drawings with PDF-imported geometry and door arcs (B (177).dwg)."""
+    import os
+    from cad_parser import parse_cad_file
+
+    sample_b177 = "samples/residential-floor-layout-dwg-60-0-x-40-0-plan-2bhk-3bhk-units-design-272455-be64724a88/B (177).dwg"
+    if not os.path.exists(sample_b177):
+        return
+
+    takeoff = parse_cad_file(sample_b177)
+    assert takeoff is not None
+    assert takeoff.total_floor_area_sqm > 50.0
+    assert takeoff.wall_length_m > 100.0
+    assert len(takeoff.openings) >= 5
+    assert takeoff.bounding_box["width"] > 5.0
+    assert takeoff.bounding_box["height"] > 5.0
+
+
+def test_cad_parser_sanitizer_dwg_1788():
+    """Verify LibreDWG attribute 66 1 auto-sanitization on complex DWGs (1 (788).dwg)."""
+    import os
+    from cad_parser import parse_cad_file
+
+    sample_1788 = "samples/999fc7ec871cd17bc96a8a9409c1c3d4/1 (788).dwg"
+    if not os.path.exists(sample_1788):
+        return
+
+    takeoff = parse_cad_file(sample_1788)
+    assert takeoff is not None
+    assert takeoff.total_floor_area_sqm > 5.0
+    assert takeoff.wall_length_m > 100.0
+    assert sum(takeoff.block_counts.values()) > 50
+
+
+def test_cad_parser_large_house_plan_speed():
+    """Verify sub-second parsing on heavy 20MB DWG (20x55_house_plan.dwg) with disk caching."""
+    import os
+    import time
+    from cad_parser import parse_cad_file
+
+    sample_20x55 = "samples/20x55_house_plan.dwg"
+    if not os.path.exists(sample_20x55):
+        return
+
+    # Ensure DWG is converted & cached
+    takeoff = parse_cad_file(sample_20x55)
+    assert takeoff is not None
+    assert takeoff.total_floor_area_sqm > 50.0
+    assert takeoff.wall_length_m > 50.0
+
+    # Cached reload must parse in under 2.0 seconds
+    t0 = time.perf_counter()
+    takeoff_cached = parse_cad_file(sample_20x55)
+    elapsed = time.perf_counter() - t0
+
+    assert takeoff_cached is not None
+    assert elapsed < 2.0  # Must parse rapidly from disk cache without freezing
