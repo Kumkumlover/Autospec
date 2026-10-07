@@ -1145,41 +1145,81 @@ class CadParser:
                 )
             )
 
-        # Global bounding box across all entities
-        all_xs: list[float] = []
-        all_ys: list[float] = []
-        for b in block_instances:
-            all_xs.append(b["x"])
-            all_ys.append(b["y"])
-        for w in wall_segments:
-            all_xs.extend([w["x1"], w["x2"]])
-            all_ys.extend([w["y1"], w["y2"]])
-        for r in room_polygons:
-            for pt in r["points"]:
-                all_xs.append(pt[0])
-                all_ys.append(pt[1])
-        if not all_xs and cad_layers:
+        # Global architectural points collection for core bounding box calculation
+        arch_xs: list[float] = []
+        arch_ys: list[float] = []
+
+        if cad_layers:
             for l_data in cad_layers.values():
-                for p in l_data["paths"][:300]:
+                for p in l_data.get("paths", []):
                     for pt in p:
-                        all_xs.append(pt[0])
-                        all_ys.append(pt[1])
-        if not all_xs:
+                        arch_xs.append(pt[0])
+                        arch_ys.append(pt[1])
+
+        if not arch_xs:
+            for w in wall_segments:
+                arch_xs.extend([w["x1"], w["x2"]])
+                arch_ys.extend([w["y1"], w["y2"]])
+            for r in room_polygons:
+                for pt in r["points"]:
+                    arch_xs.append(pt[0])
+                    arch_ys.append(pt[1])
             for cat, paths in architectural_linework.items():
-                for p in paths[:300]:
+                for p in paths:
                     for pt in p:
-                        all_xs.append(pt[0])
-                        all_ys.append(pt[1])
+                        arch_xs.append(pt[0])
+                        arch_ys.append(pt[1])
 
-        raw_min_x = min(all_xs) if all_xs else 0.0
-        raw_max_x = max(all_xs) if all_xs else 0.0
-        raw_min_y = min(all_ys) if all_ys else 0.0
-        raw_max_y = max(all_ys) if all_ys else 0.0
-        span_x_m = (raw_max_x - raw_min_x) * linear_scale
+        if not arch_xs and block_instances:
+            for b in block_instances:
+                arch_xs.append(b["x"])
+                arch_ys.append(b["y"])
 
-        # Auto-center large coordinate offsets (GIS / PDF origin offsets)
-        if (abs(raw_min_x) > 5000 and span_x_m < 800) or abs(raw_min_x) > 50000:
-            off_x, off_y = raw_min_x, raw_min_y
+        # Robust core cluster bounding box using Interquartile Range (IQR) to discard scratch/rogue entities
+        if len(arch_xs) >= 8:
+            import numpy as np
+
+            qx25, qx75 = np.percentile(arch_xs, [25, 75])
+            qy25, qy75 = np.percentile(arch_ys, [25, 75])
+            iqr_x = max(float(qx75 - qx25), 1.0)
+            iqr_y = max(float(qy75 - qy25), 1.0)
+
+            valid_pts = [
+                (x, y)
+                for x, y in zip(arch_xs, arch_ys)
+                if (qx25 - 4.0 * iqr_x <= x <= qx75 + 4.0 * iqr_x)
+                and (qy25 - 4.0 * iqr_y <= y <= qy75 + 4.0 * iqr_y)
+            ]
+            if valid_pts:
+                core_min_x = min(p[0] for p in valid_pts)
+                core_max_x = max(p[0] for p in valid_pts)
+                core_min_y = min(p[1] for p in valid_pts)
+                core_max_y = max(p[1] for p in valid_pts)
+            else:
+                core_min_x, core_max_x = min(arch_xs), max(arch_xs)
+                core_min_y, core_max_y = min(arch_ys), max(arch_ys)
+        else:
+            core_min_x = min(arch_xs) if arch_xs else 0.0
+            core_max_x = max(arch_xs) if arch_xs else 10.0
+            core_min_y = min(arch_ys) if arch_ys else 0.0
+            core_max_y = max(arch_ys) if arch_ys else 10.0
+
+        span_w = round(core_max_x - core_min_x, 3)
+        span_h = round(core_max_y - core_min_y, 3)
+
+        # Auto-center large coordinate offsets (GIS / UTM / georeferenced origins)
+        # Normalizes the drawing so the building starts cleanly at (0, 0)
+        if (
+            abs(core_min_x * linear_scale) > 2.0
+            or abs(core_min_y * linear_scale) > 2.0
+            or core_min_x < -0.1
+            or core_min_y < -0.1
+        ):
+            off_x, off_y = round(core_min_x, 3), round(core_min_y, 3)
+        else:
+            off_x, off_y = 0.0, 0.0
+
+        if off_x != 0.0 or off_y != 0.0:
             for b in block_instances:
                 b["x"] = round(b["x"] - off_x, 3)
                 b["y"] = round(b["y"] - off_y, 3)
@@ -1192,8 +1232,7 @@ class CadParser:
                 r["points"] = [[round(pt[0] - off_x, 3), round(pt[1] - off_y, 3)] for pt in r["points"]]
             for cat, paths in architectural_linework.items():
                 architectural_linework[cat] = [
-                    [(round(pt[0] - off_x, 3), round(pt[1] - off_y, 3)) for pt in p]
-                    for p in paths
+                    [(round(pt[0] - off_x, 3), round(pt[1] - off_y, 3)) for pt in p] for p in paths
                 ]
             for op in openings:
                 if op.x is not None and op.y is not None:
@@ -1201,22 +1240,55 @@ class CadParser:
                     op.y = round(op.y - off_y, 3)
             for l_name, l_data in cad_layers.items():
                 l_data["paths"] = [
-                    [(round(pt[0] - off_x, 3), round(pt[1] - off_y, 3)) for pt in p]
-                    for p in l_data["paths"]
+                    [(round(pt[0] - off_x, 3), round(pt[1] - off_y, 3)) for pt in p] for p in l_data["paths"]
                 ]
             for t in cad_texts:
                 t["x"] = round(t["x"] - off_x, 3)
                 t["y"] = round(t["y"] - off_y, 3)
-            raw_min_x, raw_max_x = 0.0, raw_max_x - off_x
-            raw_min_y, raw_max_y = 0.0, raw_max_y - off_y
+
+        # Normalized building bounding box
+        norm_min_x = 0.0 if off_x != 0.0 else round(core_min_x, 3)
+        norm_max_x = round(core_max_x - off_x, 3)
+        norm_min_y = 0.0 if off_y != 0.0 else round(core_min_y, 3)
+        norm_max_y = round(core_max_y - off_y, 3)
+
+        # Outlier Filtering: Discard rogue blocks/texts far outside the building envelope
+        margin_x = max(25.0 / linear_scale, span_w * 0.4)
+        margin_y = max(25.0 / linear_scale, span_h * 0.4)
+
+        filtered_blocks = [
+            b
+            for b in block_instances
+            if (norm_min_x - margin_x <= b["x"] <= norm_max_x + margin_x)
+            and (norm_min_y - margin_y <= b["y"] <= norm_max_y + margin_y)
+        ]
+        if filtered_blocks:
+            block_instances = filtered_blocks
+            block_counts = {}
+            for b in block_instances:
+                name = b["name"]
+                block_counts[name] = block_counts.get(name, 0) + 1
+            for blk_name in list(classified_blocks.keys()):
+                if blk_name in block_counts:
+                    classified_blocks[blk_name]["count"] = block_counts[blk_name]
+                else:
+                    classified_blocks.pop(blk_name, None)
+
+        filtered_texts = [
+            t
+            for t in cad_texts
+            if (norm_min_x - margin_x <= t["x"] <= norm_max_x + margin_x)
+            and (norm_min_y - margin_y <= t["y"] <= norm_max_y + margin_y)
+        ]
+        cad_texts = filtered_texts
 
         bounding_box = {
-            "min_x": round(raw_min_x, 3),
-            "max_x": round(raw_max_x, 3),
-            "min_y": round(raw_min_y, 3),
-            "max_y": round(raw_max_y, 3),
-            "width": round(raw_max_x - raw_min_x, 3),
-            "height": round(raw_max_y - raw_min_y, 3),
+            "min_x": round(norm_min_x, 3),
+            "max_x": round(norm_max_x, 3),
+            "min_y": round(norm_min_y, 3),
+            "max_y": round(norm_max_y, 3),
+            "width": span_w,
+            "height": span_h,
         }
 
         return ParsedCadTakeoff(

@@ -651,13 +651,13 @@ class CadVisualizer:
         # =====================================================================
         # CAMERA & FOCUS BOUNDS (Auto-focus strictly to building geometry)
         # =====================================================================
-        if bounding_box and bounding_box.get("max_x", 0.0) > bounding_box.get("min_x", 0.0):
+        if bounding_box and bounding_box.get("width", 0.0) > 0.1:
             min_x = bounding_box["min_x"]
             max_x = bounding_box["max_x"]
             min_y = bounding_box["min_y"]
             max_y = bounding_box["max_y"]
-            pad_x = max(2.0, (max_x - min_x) * 0.08)
-            pad_y = max(2.0, (max_y - min_y) * 0.08)
+            pad_x = max(1.5, (max_x - min_x) * 0.05)
+            pad_y = max(1.5, (max_y - min_y) * 0.05)
             range_x = [min_x - pad_x, max_x + pad_x]
             range_y = [min_y - pad_y, max_y + pad_y]
         else:
@@ -684,13 +684,13 @@ class CadVisualizer:
             if focus_xs and focus_ys:
                 min_x, max_x = min(focus_xs), max(focus_xs)
                 min_y, max_y = min(focus_ys), max(focus_ys)
-                pad_x = max(2.0, (max_x - min_x) * 0.08)
-                pad_y = max(2.0, (max_y - min_y) * 0.08)
+                pad_x = max(1.5, (max_x - min_x) * 0.05)
+                pad_y = max(1.5, (max_y - min_y) * 0.05)
                 range_x = [min_x - pad_x, max_x + pad_x]
                 range_y = [min_y - pad_y, max_y + pad_y]
             else:
-                range_x = [-10, 50]
-                range_y = [-10, 50]
+                range_x = [-2, 40]
+                range_y = [-2, 30]
 
         unit_label = getattr(self.takeoff, "units", "m").upper()
         file_name = getattr(self.takeoff, "file_name", "CAD Drawing")
