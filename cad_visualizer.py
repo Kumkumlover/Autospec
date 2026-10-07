@@ -8,6 +8,7 @@ and ezdxf/matplotlib. No drawings, geometry, or coordinates are transmitted exte
 from __future__ import annotations
 
 import io
+import math
 import os
 from typing import Any
 
@@ -245,6 +246,14 @@ class CadVisualizer:
                     if not xs:
                         continue
 
+                    # Calculate total linework length for this CAD layer
+                    linear_scale = getattr(self.takeoff, "scale_factor_to_meters", 1.0)
+                    layer_len_m = 0.0
+                    for p in paths:
+                        for i in range(len(p) - 1):
+                            layer_len_m += math.hypot(p[i + 1][0] - p[i][0], p[i + 1][1] - p[i][1]) * linear_scale
+                    len_tag = f" • {layer_len_m:.1f} m" if layer_len_m > 0.1 else ""
+
                     raw_color = layer_data.get("color", "#FFFFFF")
                     layer_color = self._adjust_color_for_theme(raw_color, active_theme)
                     line_w = 1.6 if "WALL" in layer_name.upper() or "MURO" in layer_name.upper() else 1.1
@@ -256,11 +265,11 @@ class CadVisualizer:
                             mode="lines",
                             line={"color": layer_color, "width": line_w},
                             opacity=opacity,
-                            name=f"{friendly_name} ({len(paths)} segs)",
+                            name=f"{friendly_name} ({len(paths)} segs{len_tag})",
                             legendgroup="AutoCAD Linework",
                             legendgrouptitle_text="🏛️ AutoCAD Model Space Layers",
                             hoverinfo="text",
-                            hovertext=f"<b>AutoCAD Layer: {layer_name}</b><br>Entities: {len(paths)}<br>Native Color: {raw_color}",
+                            hovertext=f"<b>🏛️ AutoCAD Layer: {layer_name}</b><br>Category: {friendly_name}<br>Linework: {len(paths)} segments{len_tag}<br>Native Color: {raw_color}",
                         )
                     )
 
@@ -428,6 +437,8 @@ class CadVisualizer:
                 sorted_rooms = sorted(room_polygons, key=lambda r: r.get("area_sqm", 0.0), reverse=True)
                 top_rooms = sorted_rooms[:25]
                 remaining_rooms = sorted_rooms[25:]
+                total_floor_m2 = getattr(self.takeoff, "total_floor_area_sqm", sum(r.get("area_sqm", 0.0) for r in room_polygons))
+                total_floor_sqft = total_floor_m2 * 10.764
 
                 for idx, room in enumerate(top_rooms):
                     pts = room.get("points", [])
@@ -445,14 +456,15 @@ class CadVisualizer:
                                 fill="toself",
                                 fillcolor=room_fill_color,
                                 line={"color": room_line_color, "width": 2.0, "dash": "dot"},
-                                name=f"📐 Measured Floor ({area:.1f} m²)",
+                                name=f"📐 Measured Floor ({total_floor_m2:.1f} m² • {total_floor_sqft:,.0f} sq.ft)",
                                 legendgroup="Takeoff Highlights",
                                 legendgrouptitle_text="🎯 AutoSpec Takeoff Highlights (BOQ Link)" if not (highlight_walls and wall_segments) else None,
                                 showlegend=(idx == 0),
                                 hovertext=(
-                                    f"<b>Flooring Takeoff Zone</b><br>"
+                                    f"<b>Flooring Takeoff Zone #{idx + 1}</b><br>"
                                     f"Layer: {layer}<br>"
                                     f"Net Floor Area: {area:.2f} m² ({(area * 10.764):.1f} sq.ft)<br>"
+                                    f"Total Project Floor: {total_floor_m2:.1f} m² ({total_floor_sqft:,.0f} sq.ft)<br>"
                                     f"BOQ Trade: Flooring & Finishes<br>"
                                     f"Matched SKU: Vitrified Tiles / Granite"
                                 ),
@@ -539,6 +551,11 @@ class CadVisualizer:
                             f"CAD Reference: {op.cad_ref}"
                         )
 
+                # Calculate statutory net deduction metrics
+                t1_area = sum(op.area_sqm for op in openings if op.area_sqm <= 0.5)
+                t2_deduct = sum(op.area_sqm for op in openings if 0.5 < op.area_sqm <= 3.0)
+                t3_deduct = sum(2 * op.area_sqm for op in openings if op.area_sqm > 3.0)
+
                 # Tier 1 Openings
                 if tier1_xs:
                     fig.add_trace(
@@ -552,7 +569,7 @@ class CadVisualizer:
                             textfont={"size": 9, "color": "#10B981"},
                             hovertext=tier1_hovers,
                             hoverinfo="text",
-                            name=f"🟢 Openings (IS 1200 Tier 1: Exempt) ({len(tier1_xs)} nos)",
+                            name=f"🟢 Openings (IS 1200 Tier 1: Exempt) ({len(tier1_xs)} nos • {t1_area:.1f} m²)",
                             legendgroup="Takeoff Highlights",
                         )
                     )
@@ -569,7 +586,7 @@ class CadVisualizer:
                             textfont={"size": 9, "color": "#F59E0B"},
                             hovertext=tier2_hovers,
                             hoverinfo="text",
-                            name=f"🟠 Openings (IS 1200 Tier 2: 1-Face Deduct) ({len(tier2_xs)} nos)",
+                            name=f"🟠 Openings (IS 1200 Tier 2: 1-Face Deduct) ({len(tier2_xs)} nos • -{t2_deduct:.1f} m²)",
                             legendgroup="Takeoff Highlights",
                         )
                     )
@@ -586,7 +603,7 @@ class CadVisualizer:
                             textfont={"size": 9, "color": "#EF4444"},
                             hovertext=tier3_hovers,
                             hoverinfo="text",
-                            name=f"🔴 Openings (IS 1200 Tier 3: 2-Faces + Reveals) ({len(tier3_xs)} nos)",
+                            name=f"🔴 Openings (IS 1200 Tier 3: 2-Faces + Reveals) ({len(tier3_xs)} nos • -{t3_deduct:.1f} m²)",
                             legendgroup="Takeoff Highlights",
                         )
                     )
@@ -607,43 +624,84 @@ class CadVisualizer:
                     "Other Architectural Fittings": "📦",
                 }
 
+                trade_details = {
+                    "Electrical - Lighting": "Recessed Downlights",
+                    "Electrical - Fans": "BLDC Ceiling Fans",
+                    "Electrical - Switches & Sockets": "Modular Points",
+                    "Plumbing - Sanitaryware": "Sanitary Fixtures",
+                    "Furniture & Equipment": "Loose Furniture",
+                    "Other Architectural Fittings": "Fittings",
+                }
+
+                trade_styles = {
+                    "Electrical - Lighting": {"color": "#FACC15", "symbol": "circle", "size": 13, "border": "#000000"},
+                    "Electrical - Fans": {"color": "#38BDF8", "symbol": "diamond", "size": 14, "border": "#000000"},
+                    "Electrical - Switches & Sockets": {"color": "#C084FC", "symbol": "square", "size": 11, "border": "#000000"},
+                    "Plumbing - Sanitaryware": {"color": "#06B6D4", "symbol": "triangle-up", "size": 12, "border": "#000000"},
+                    "Furniture & Equipment": {"color": "#94A3B8", "symbol": "circle-open", "size": 10, "border": "#64748B"},
+                    "Other Architectural Fittings": {"color": "#E2E8F0", "symbol": "circle", "size": 9, "border": "#475569"},
+                }
+
                 for trade, instances in sorted(trade_groups.items()):
                     if visible_trades is not None:
                         short_name = trade.split(" - ")[-1]
                         if trade not in visible_trades and short_name not in visible_trades and not any(short_name in vt for vt in visible_trades):
                             continue
 
-                    style = trade_palette.get(trade, trade_palette.get("Other Architectural Fittings", {}))
+                    style = trade_styles.get(trade, trade_palette.get(trade, {"color": "#FACC15", "symbol": "circle", "size": 11, "border": marker_border}))
                     icon = trade_icons.get(trade, "📍")
+                    detail = trade_details.get(trade, "Fittings")
+                    subtrade = trade.split(" - ")[-1]
+
                     bx = [b["x"] for b in instances]
                     by = [b["y"] for b in instances]
-                    b_texts = [b["name"] if label_mode == "all" else "" for b in instances]
-                    b_hovers = [
-                        f"<b>{b['name']}</b><br>"
-                        f"Trade: {trade}<br>"
-                        f"Layer: {b['layer']}<br>"
-                        f"Position: ({b['x']:.2f}, {b['y']:.2f})<br>"
-                        f"Rotation: {b.get('rotation', 0):.0f}°"
-                        for b in instances
-                    ]
+                    if label_mode == "all":
+                        b_texts = [b.get("name", "") for b in instances]
+                    elif label_mode == "fixtures" or len(instances) <= 30:
+                        b_texts = [icon for _ in instances]
+                    else:
+                        b_texts = [""] * len(instances)
 
+                    b_hovers = []
+                    for b in instances:
+                        b_name = b.get("name", "Fixture")
+                        attribs = b.get("attributes", {})
+                        model_name = attribs.get("model_name") or b_name
+                        brand = attribs.get("brand")
+                        brand_str = f"<br>Brand: {brand}" if brand else ""
+                        rate = attribs.get("unit_rate_inr")
+                        rate_str = f"<br>Estimated B2B Rate: ₹{rate:,.0f} / pc" if rate else ""
+                        zone = attribs.get("room_zone") or "Plan Layout"
+                        boq_code = attribs.get("boq_item")
+                        boq_str = f"<br>BOQ Item: {boq_code}" if boq_code else ""
+                        b_hovers.append(
+                            f"<b>{icon} {model_name}</b>"
+                            f"{brand_str}"
+                            f"<br>Trade: {trade}"
+                            f"<br>Location: {zone} (X={b['x']:.2f}m, Y={b['y']:.2f}m)"
+                            f"{rate_str}"
+                            f"{boq_str}"
+                            f"<br>CAD Layer: {b.get('layer', 'DEFAULT')}"
+                        )
+
+                    show_text = (label_mode in ("fixtures", "all")) or (len(instances) <= 30)
                     fig.add_trace(
                         go.Scatter(
                             x=bx,
                             y=by,
-                            mode="markers+text" if label_mode == "all" else "markers",
+                            mode="markers+text" if show_text else "markers",
                             marker={
-                                "size": 11,
+                                "size": style.get("size", 12),
                                 "color": style.get("color", "#FACC15"),
                                 "symbol": style.get("symbol", "circle"),
-                                "line": {"color": marker_border, "width": 1.5},
+                                "line": {"color": style.get("border", marker_border), "width": 1.8},
                             },
                             text=b_texts,
-                            textposition="top right",
-                            textfont={"size": 8, "color": style.get("color", title_color)},
+                            textposition="middle center" if not (label_mode == "all") else "top right",
+                            textfont={"size": 10 if not (label_mode == "all") else 8, "color": "#FFFFFF" if active_theme != "light" else "#000000"},
                             hovertext=b_hovers,
                             hoverinfo="text",
-                            name=f"{icon} {trade.split(' - ')[-1]} ({len(instances)} pcs)",
+                            name=f"{icon} {subtrade} ({len(instances)} pcs • {detail})",
                             legendgroup="Takeoff Highlights",
                         )
                     )

@@ -1383,6 +1383,8 @@ class CadParser:
             takeoff = self.parse_dxf_file(target_path)
             if filename:
                 takeoff.file_name = filename
+            # Synthesize MEP fixtures (lighting, fans, switches) if raw CAD blocks are absent
+            synthesize_architectural_fixtures(takeoff)
             if cache_key:
                 _TAKEOFF_CACHE[cache_key] = (file_mtime, takeoff)
             return takeoff
@@ -1392,6 +1394,216 @@ class CadParser:
                     os.remove(temp_dxf)
                 except Exception:
                     pass
+
+
+def point_in_polygon(x: float, y: float, poly: list[list[float]] | list[tuple[float, float]]) -> bool:
+    """Ray casting algorithm for point-in-polygon containment test."""
+    n = len(poly)
+    if n < 3:
+        return False
+    inside = False
+    p1x, p1y = poly[0][0], poly[0][1]
+    for i in range(1, n + 1):
+        p2x, p2y = poly[i % n][0], poly[i % n][1]
+        if y > min(p1y, p2y):
+            if y <= max(p1y, p2y):
+                if x <= max(p1x, p2x):
+                    if p1y != p2y:
+                        xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                    if p1x == p2x or x <= xinters:
+                        inside = not inside
+        p1x, p1y = p2x, p2y
+    return inside
+
+
+def synthesize_architectural_fixtures(
+    takeoff: ParsedCadTakeoff,
+    lighting_brand: str = "Philips",
+    lighting_wattage: int = 12,
+    lighting_color_temp: str = "3000K Warm White",
+    fan_brand: str = "Atomberg",
+    switch_brand: str = "Schneider",
+    force_resynthesize: bool = False,
+) -> int:
+    """Synthesizes physical MEP fixture instances across detected rooms if raw CAD blocks are absent.
+
+    Places:
+    - 💡 Recessed LED Downlights in a ~2.0m grid within room zones (or 1 per 4.5 sqm).
+    - 🌀 BLDC Ceiling Fans at centroids of habitable rooms (area >= 7.0 sqm).
+    - 🔌 Modular Switches/Sockets along room wall perimeters.
+
+    Returns the count of synthesized fixture instances.
+    """
+    has_lighting = any(b.get("trade") == "Electrical - Lighting" for b in takeoff.block_instances)
+    has_fans = any(b.get("trade") == "Electrical - Fans" for b in takeoff.block_instances)
+
+    if has_lighting and has_fans and not force_resynthesize:
+        return 0
+
+    # If re-synthesizing, remove previously synthesized fixtures
+    if force_resynthesize:
+        takeoff.block_instances = [b for b in takeoff.block_instances if not b.get("is_synthesized")]
+
+    scale = getattr(takeoff, "scale_factor_to_meters", 1.0)
+    if scale <= 0:
+        scale = 1.0
+
+    synthesized: list[dict[str, Any]] = []
+    room_polys = getattr(takeoff, "room_polygons", [])
+
+    # Filter candidate rooms with area between 2.0 sqm and 120.0 sqm
+    candidate_rooms = [r for r in room_polys if 2.0 <= r.get("area_sqm", 0.0) <= 120.0]
+
+    # If no individual rooms detected, but floor area exists, use bounding box as room
+    if not candidate_rooms:
+        bbox = getattr(takeoff, "bounding_box", {})
+        if bbox and bbox.get("width", 0.0) > 1.0:
+            w_units = bbox["width"]
+            h_units = bbox["height"]
+            min_x = bbox["min_x"]
+            min_y = bbox["min_y"]
+            candidate_rooms = [
+                {
+                    "points": [
+                        [min_x, min_y],
+                        [min_x + w_units, min_y],
+                        [min_x + w_units, min_y + h_units],
+                        [min_x, min_y + h_units],
+                    ],
+                    "area_sqm": getattr(takeoff, "total_floor_area_sqm", 50.0),
+                    "category": "Flooring",
+                }
+            ]
+
+    light_idx = 1
+    fan_idx = 1
+    switch_idx = 1
+
+    for r_i, r in enumerate(candidate_rooms):
+        pts = r.get("points", [])
+        if len(pts) < 3:
+            continue
+        area_sqm = r.get("area_sqm", 10.0)
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        cx = sum(xs) / len(xs)
+        cy = sum(ys) / len(ys)
+
+        # 1. BLDC Ceiling Fan at room centroid
+        if area_sqm >= 7.0 and (not has_fans or force_resynthesize):
+            num_fans = 2 if area_sqm >= 28.0 else 1
+            if num_fans == 1:
+                fan_locs = [(cx, cy)]
+            else:
+                if (max_x - min_x) >= (max_y - min_y):
+                    dx = (max_x - min_x) * 0.25
+                    fan_locs = [(cx - dx, cy), (cx + dx, cy)]
+                else:
+                    dy = (max_y - min_y) * 0.25
+                    fan_locs = [(cx, cy - dy), (cx, cy + dy)]
+
+            for fx, fy in fan_locs:
+                synthesized.append(
+                    {
+                        "name": f"BLDC_FAN_{fan_idx:02d}",
+                        "trade": "Electrical - Fans",
+                        "x": round(fx, 3),
+                        "y": round(fy, 3),
+                        "rotation": 0.0,
+                        "layer": "AUTOSPEC_PLANNED_ELEC",
+                        "is_synthesized": True,
+                        "attributes": {
+                            "model_name": f"{fan_brand} 1200mm BLDC Energy-Efficient Fan",
+                            "brand": fan_brand,
+                            "wattage": "28W",
+                            "unit_rate_inr": 3450.0,
+                            "room_zone": f"Zone #{r_i + 1}",
+                            "boq_item": "ELE-002",
+                        },
+                    }
+                )
+                fan_idx += 1
+
+        # 2. Modular Switch/Socket at perimeter
+        if not any(b.get("trade") == "Electrical - Switches & Sockets" for b in takeoff.block_instances):
+            sw_x = (pts[0][0] + pts[1][0]) * 0.5
+            sw_y = (pts[0][1] + pts[1][1]) * 0.5
+            synthesized.append(
+                {
+                    "name": f"MODULAR_SW_{switch_idx:02d}",
+                    "trade": "Electrical - Switches & Sockets",
+                    "x": round(sw_x, 3),
+                    "y": round(sw_y, 3),
+                    "rotation": 0.0,
+                    "layer": "AUTOSPEC_PLANNED_ELEC",
+                    "is_synthesized": True,
+                    "attributes": {
+                        "model_name": f"{switch_brand} Opale 6A/16A Modular Switch & Socket",
+                        "brand": switch_brand,
+                        "rating": "6A/16A",
+                        "unit_rate_inr": 285.0,
+                        "room_zone": f"Zone #{r_i + 1}",
+                        "boq_item": "ELE-003",
+                    },
+                }
+            )
+            switch_idx += 1
+
+        # 3. Recessed LED Downlights Grid
+        if not has_lighting or force_resynthesize:
+            spacing_units = 2.1 / scale
+            start_x = min_x + spacing_units * 0.5
+            start_y = min_y + spacing_units * 0.5
+
+            cur_x = start_x
+            while cur_x < max_x:
+                cur_y = start_y
+                while cur_y < max_y:
+                    if point_in_polygon(cur_x, cur_y, pts):
+                        synthesized.append(
+                            {
+                                "name": f"LED_DOWNLIGHT_{light_idx:03d}",
+                                "trade": "Electrical - Lighting",
+                                "x": round(cur_x, 3),
+                                "y": round(cur_y, 3),
+                                "rotation": 0.0,
+                                "layer": "AUTOSPEC_PLANNED_LIGHTING",
+                                "is_synthesized": True,
+                                "attributes": {
+                                    "model_name": f"{lighting_brand} {lighting_wattage}W {lighting_color_temp} Recessed LED Downlight",
+                                    "brand": lighting_brand,
+                                    "wattage": f"{lighting_wattage}W",
+                                    "color_temp": lighting_color_temp,
+                                    "unit_rate_inr": 420.0,
+                                    "room_zone": f"Zone #{r_i + 1}",
+                                    "boq_item": "ELE-001",
+                                },
+                            }
+                        )
+                        light_idx += 1
+                    cur_y += spacing_units
+                cur_x += spacing_units
+
+    if synthesized:
+        takeoff.block_instances.extend(synthesized)
+
+        for b in synthesized:
+            trade = b["trade"]
+            name = b["name"]
+            takeoff.block_counts[name] = takeoff.block_counts.get(name, 0) + 1
+            if name not in takeoff.classified_blocks:
+                takeoff.classified_blocks[name] = {
+                    "count": 0,
+                    "trade": trade,
+                    "attributes": b["attributes"],
+                    "locations": [],
+                }
+            takeoff.classified_blocks[name]["count"] += 1
+            takeoff.classified_blocks[name]["locations"].append((b["x"], b["y"]))
+
+    return len(synthesized)
 
 
 def parse_dxf_file(

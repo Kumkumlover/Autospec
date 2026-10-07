@@ -465,6 +465,29 @@ if st.session_state.get("_last_spec_key") != spec_key or "spec" not in st.sessio
         )
         st.session_state["spec"] = spec
         st.session_state["_last_spec_key"] = spec_key
+
+        # Synchronize physical MEP fixtures with client brief preferences
+        try:
+            from cad_parser import synthesize_architectural_fixtures
+
+            l_brand = getattr(spec, "preferred_lighting_brand", "Philips")
+            f_brand = getattr(spec, "preferred_fan_brand", "Atomberg")
+            s_brand = getattr(spec, "preferred_switch_brand", "Schneider")
+            w_val = getattr(spec, "lighting_wattage", 12)
+            c_val = getattr(spec, "lighting_color_temp", "3000K")
+            cct_str = f"{c_val} Warm White" if "3000" in str(c_val) else f"{c_val} Daylight"
+
+            synthesize_architectural_fixtures(
+                takeoff,
+                lighting_brand=l_brand if l_brand != "Any" else "Philips",
+                lighting_wattage=w_val,
+                lighting_color_temp=cct_str,
+                fan_brand=f_brand if f_brand != "Any" else "Atomberg",
+                switch_brand=s_brand if s_brand != "Any" else "Schneider",
+                force_resynthesize=False,
+            )
+        except Exception:
+            pass
 else:
     spec = st.session_state["spec"]
 
@@ -715,43 +738,296 @@ with tab1:
 
     st.divider()
 
-    # Data Tables
-    col_left, col_right = st.columns([1, 1])
+    st.divider()
 
-    with col_left:
-        st.markdown("#### Classified Block Symbols (`INSERT`)")
-        block_rows = []
-        for blk_name, info in takeoff.classified_blocks.items():
-            block_rows.append(
+    # =========================================================================
+    # INTERACTIVE CAD ELEMENT & MEASUREMENT INSPECTOR
+    # =========================================================================
+    st.markdown("### 🔬 Interactive CAD Element & Measurement Inspector")
+    st.caption(
+        "Click or select any architectural trade, CAD layer, or takeoff element below to inspect its live measurement, quantity, dimensions, spatial coordinates, and statutory BOQ derivation."
+    )
+
+    n_lights = sum(1 for b in takeoff.block_instances if b.get("trade") == "Electrical - Lighting")
+    n_fans = sum(1 for b in takeoff.block_instances if b.get("trade") == "Electrical - Fans")
+    n_switches = sum(1 for b in takeoff.block_instances if b.get("trade") == "Electrical - Switches & Sockets")
+    n_openings = len(takeoff.openings)
+    n_rooms = len(takeoff.room_polygons)
+    n_walls = len(takeoff.wall_segments)
+    n_layers = len(getattr(takeoff, "cad_layers", {}))
+
+    elem_options = [
+        f"💡 Electrical Lighting ({n_lights} pcs)",
+        f"🌀 BLDC Ceiling Fans ({n_fans} pcs)",
+        f"🔌 Modular Switches & Sockets ({n_switches} pcs)",
+        f"🧱 Civil Masonry Walls ({takeoff.wall_length_m:.1f} m • {takeoff.total_wall_area_sqm:.1f} m²)",
+        f"📐 Flooring & Room Zones ({takeoff.total_floor_area_sqm:.1f} m² across {n_rooms} zones)",
+        f"🏷️ IS 1200 Openings ({n_openings} doors & windows)",
+        f"🏛️ AutoCAD Model Space Layers ({n_layers} layers)",
+    ]
+
+    selected_elem = st.selectbox(
+        "Select Architectural Element or CAD Layer to Inspect:",
+        elem_options,
+        index=0,
+        help="Switch between trades to review itemized measurements, exact locations, and linked statutory BOQ lines.",
+    )
+
+    if selected_elem.startswith("💡"):
+        lights = [b for b in takeoff.block_instances if b.get("trade") == "Electrical - Lighting"]
+        if lights:
+            first_attr = lights[0].get("attributes", {})
+            brand = first_attr.get("brand", "Philips")
+            wattage = first_attr.get("wattage", "12W")
+            cct = first_attr.get("color_temp", "3000K Warm White")
+            unit_rate = float(first_attr.get("unit_rate_inr", 420.0))
+            tot_cost = len(lights) * unit_rate
+
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Selected Trade", "Electrical - Lighting", "Recessed Downlights")
+            c2.metric("Total Fixtures", f"{len(lights)} Pcs", f"Floor Coverage: {takeoff.total_floor_area_sqm:.1f} m²")
+            c3.metric("Selected Brand & CCT", f"{brand} ({wattage})", cct)
+            c4.metric("Estimated Trade Cost", f"₹{tot_cost:,.0f}", f"@ ₹{unit_rate:,.0f} / pc")
+
+            rows = []
+            for idx, b in enumerate(lights, 1):
+                attr = b.get("attributes", {})
+                rows.append(
+                    {
+                        "Tag": f"LIGHT-{idx:03d}",
+                        "Model Description": attr.get("model_name", b.get("name")),
+                        "Brand": attr.get("brand", brand),
+                        "Wattage": attr.get("wattage", wattage),
+                        "Room Zone": attr.get("room_zone", f"Zone #{((idx-1)%max(1, n_rooms))+1}"),
+                        "Coord X (m)": f"{b.get('x', 0.0):.2f}",
+                        "Coord Y (m)": f"{b.get('y', 0.0):.2f}",
+                        "Unit Rate": f"₹{float(attr.get('unit_rate_inr', unit_rate)):,.0f}",
+                        "BOQ Code": attr.get("boq_item", "ELE-001"),
+                    }
+                )
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        else:
+            st.info("No lighting fixtures detected or synthesized for this drawing.")
+
+    elif selected_elem.startswith("🌀"):
+        fans = [b for b in takeoff.block_instances if b.get("trade") == "Electrical - Fans"]
+        if fans:
+            first_attr = fans[0].get("attributes", {})
+            brand = first_attr.get("brand", "Atomberg")
+            unit_rate = float(first_attr.get("unit_rate_inr", 3450.0))
+            tot_cost = len(fans) * unit_rate
+
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Selected Trade", "Electrical - Fans", "BLDC Ceiling Fans")
+            c2.metric("Total Fixtures", f"{len(fans)} Pcs", "Habitable Room Centroids")
+            c3.metric("Selected Brand & Spec", f"{brand} 1200mm", "28W 5-Star Energy Saver")
+            c4.metric("Estimated Trade Cost", f"₹{tot_cost:,.0f}", f"@ ₹{unit_rate:,.0f} / pc")
+
+            rows = []
+            for idx, b in enumerate(fans, 1):
+                attr = b.get("attributes", {})
+                rows.append(
+                    {
+                        "Tag": f"FAN-{idx:02d}",
+                        "Model Description": attr.get("model_name", b.get("name")),
+                        "Brand": attr.get("brand", brand),
+                        "Sweep / Rating": "1200mm / 28W BLDC",
+                        "Room Zone": attr.get("room_zone", f"Zone #{idx}"),
+                        "Centroid X (m)": f"{b.get('x', 0.0):.2f}",
+                        "Centroid Y (m)": f"{b.get('y', 0.0):.2f}",
+                        "Unit Rate": f"₹{float(attr.get('unit_rate_inr', unit_rate)):,.0f}",
+                        "BOQ Code": attr.get("boq_item", "ELE-002"),
+                    }
+                )
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        else:
+            st.info("No ceiling fans detected or synthesized for this drawing.")
+
+    elif selected_elem.startswith("🔌"):
+        switches = [b for b in takeoff.block_instances if b.get("trade") == "Electrical - Switches & Sockets"]
+        if switches:
+            first_attr = switches[0].get("attributes", {})
+            brand = first_attr.get("brand", "Schneider")
+            unit_rate = float(first_attr.get("unit_rate_inr", 285.0))
+            tot_cost = len(switches) * unit_rate
+
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Selected Trade", "Electrical - Switches", "Modular Points")
+            c2.metric("Total Fixtures", f"{len(switches)} Pcs", "Wall Perimeter Nodes")
+            c3.metric("Selected Brand & Grade", f"{brand} Opale", "6A/16A Combined")
+            c4.metric("Estimated Trade Cost", f"₹{tot_cost:,.0f}", f"@ ₹{unit_rate:,.0f} / pc")
+
+            rows = []
+            for idx, b in enumerate(switches, 1):
+                attr = b.get("attributes", {})
+                rows.append(
+                    {
+                        "Tag": f"SW-{idx:02d}",
+                        "Model Description": attr.get("model_name", b.get("name")),
+                        "Brand": attr.get("brand", brand),
+                        "Rating": attr.get("rating", "6A/16A Modular"),
+                        "Room Zone": attr.get("room_zone", f"Zone #{((idx-1)%max(1, n_rooms))+1}"),
+                        "Coord X (m)": f"{b.get('x', 0.0):.2f}",
+                        "Coord Y (m)": f"{b.get('y', 0.0):.2f}",
+                        "Unit Rate": f"₹{float(attr.get('unit_rate_inr', unit_rate)):,.0f}",
+                        "BOQ Code": attr.get("boq_item", "ELE-003"),
+                    }
+                )
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        else:
+            st.info("No modular switches detected or synthesized for this drawing.")
+
+    elif selected_elem.startswith("🧱"):
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Selected Trade", "Civil Masonry & Plaster", "IS 1200 Part 4 & 12")
+        c2.metric("Total Centerline Length", f"{takeoff.wall_length_m:.1f} m", f"{len(takeoff.wall_segments)} Segments")
+        c3.metric("Standard Wall Height", f"{wall_height:.2f} m", f"Thickness: {wall_thickness*1000:.0f} mm")
+        c4.metric("Gross Wall Area", f"{takeoff.total_wall_area_sqm:.1f} m²", f"Gross Vol: {takeoff.wall_volume_cum:.1f} m³")
+
+        rows = []
+        for idx, w in enumerate(takeoff.wall_segments[:100], 1):
+            length_m = math.hypot(w["x2"] - w["x1"], w["y2"] - w["y1"]) * getattr(takeoff, "scale_factor_to_meters", 1.0)
+            area_sqm = length_m * wall_height
+            rows.append(
                 {
-                    "Block Name": blk_name,
-                    "Trade Category": info["trade"],
-                    "Quantity": info["count"],
+                    "Segment #": f"WALL-{idx:03d}",
+                    "CAD Layer": w.get("layer", "A-WALL"),
+                    "Start X (m)": f"{w['x1']:.2f}",
+                    "Start Y (m)": f"{w['y1']:.2f}",
+                    "End X (m)": f"{w['x2']:.2f}",
+                    "End Y (m)": f"{w['y2']:.2f}",
+                    "Length (m)": f"{length_m:.2f}",
+                    "Height (m)": f"{wall_height:.2f}",
+                    "Gross Area (m²)": f"{area_sqm:.2f}",
                 }
             )
-        if block_rows:
-            st.dataframe(pd.DataFrame(block_rows), use_container_width=True, hide_index=True)
+        if rows:
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            if len(takeoff.wall_segments) > 100:
+                st.caption(f"Showing first 100 of {len(takeoff.wall_segments)} measured wall segments.")
         else:
-            st.info("No block insertions detected in this drawing.")
+            st.info("No wall segments detected in this drawing.")
 
-    with col_right:
-        st.markdown("#### Detected Openings for IS 1200 Deductions")
-        op_rows = []
+    elif selected_elem.startswith("📐"):
+        sqft = takeoff.total_floor_area_sqm * 10.764
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Selected Trade", "Flooring & Finishes", "IS 1200 Part 11")
+        c2.metric("Net Floor Area", f"{takeoff.total_floor_area_sqm:.1f} m²", f"{sqft:,.0f} sq.ft")
+        c3.metric("Detected Zones", f"{len(takeoff.room_polygons)} Rooms / Spaces", "Closed Polygons")
+        c4.metric("Client SKU Preference", getattr(spec, "flooring_preference", "Vitrified Tile"), "Procurement Matched")
+
+        rows = []
+        for idx, r in enumerate(takeoff.room_polygons, 1):
+            area = r.get("area_sqm", 0.0)
+            pts = r.get("points", [])
+            perim = 0.0
+            if len(pts) >= 3:
+                for i in range(len(pts)):
+                    p1 = pts[i]
+                    p2 = pts[(i + 1) % len(pts)]
+                    perim += math.hypot(p2[0] - p1[0], p2[1] - p1[1]) * getattr(takeoff, "scale_factor_to_meters", 1.0)
+                cx = sum(p[0] for p in pts) / len(pts)
+                cy = sum(p[1] for p in pts) / len(pts)
+            else:
+                cx, cy = 0.0, 0.0
+
+            rows.append(
+                {
+                    "Zone #": f"ZONE-{idx:02d}",
+                    "CAD Layer": r.get("layer", "A-FLOR"),
+                    "Net Area (m²)": f"{area:.2f}",
+                    "Area (sq.ft)": f"{area * 10.764:.1f}",
+                    "Perimeter (m)": f"{perim:.2f}",
+                    "Centroid X (m)": f"{cx:.2f}",
+                    "Centroid Y (m)": f"{cy:.2f}",
+                    "Matched SKU": getattr(spec, "flooring_preference", "Vitrified Tile 600x600mm"),
+                }
+            )
+        if rows:
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        else:
+            st.info("No closed room polygons detected in this drawing.")
+
+    elif selected_elem.startswith("🏷️"):
+        t1_cnt = sum(1 for op in takeoff.openings if op.area_sqm <= 0.5)
+        t2_cnt = sum(1 for op in takeoff.openings if 0.5 < op.area_sqm <= 3.0)
+        t3_cnt = sum(1 for op in takeoff.openings if op.area_sqm > 3.0)
+        total_op_area = sum(op.area_sqm for op in takeoff.openings)
+
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Total Openings", f"{len(takeoff.openings)} Nos", f"{total_op_area:.1f} m² Gross Opening Area")
+        c2.metric("Tier 1 (≤ 0.5 m²)", f"{t1_cnt} Nos", "Zero Plaster Deduction (IS 1200 Part 12)")
+        c3.metric("Tier 2 (0.5 to 3.0 m²)", f"{t2_cnt} Nos", "Single Face Deducted (1.0 × Area)")
+        c4.metric("Tier 3 (> 3.0 m²)", f"{t3_cnt} Nos", "Both Faces Deducted (2.0 × Area) + Reveals")
+
+        rows = []
         for op in takeoff.openings:
-            op_rows.append(
+            if op.area_sqm <= 0.5:
+                tier = "Tier 1 (≤ 0.5 m²)"
+                plaster_effect = "Exempt (0 m² deducted)"
+                vol_deduct = 0.0
+            elif op.area_sqm <= 3.0:
+                tier = "Tier 2 (0.5 to 3.0 m²)"
+                plaster_effect = f"-{op.area_sqm:.2f} m² (1 Face)"
+                vol_deduct = op.area_sqm * wall_thickness
+            else:
+                tier = "Tier 3 (> 3.0 m²)"
+                plaster_effect = f"-{2 * op.area_sqm:.2f} m² (Both Faces) + Reveals"
+                vol_deduct = op.area_sqm * wall_thickness
+
+            rows.append(
                 {
                     "ID": op.id,
                     "Type": op.type,
                     "Width (m)": f"{op.width_m:.2f}",
                     "Height (m)": f"{op.height_m:.2f}",
                     "Area (m²)": f"{op.area_sqm:.2f}",
+                    "IS 1200 Tier": tier,
+                    "Plaster Deduction Impact": plaster_effect,
+                    "Masonry Volume Deducted (m³)": f"{vol_deduct:.2f}",
                     "CAD Reference": op.cad_ref,
                 }
             )
-        if op_rows:
-            st.dataframe(pd.DataFrame(op_rows), use_container_width=True, hide_index=True)
+        if rows:
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
         else:
-            st.info("No openings detected.")
+            st.info("No openings detected in this drawing.")
+
+    elif selected_elem.startswith("🏛️"):
+        layers = getattr(takeoff, "cad_layers", {})
+        linear_scale = getattr(takeoff, "scale_factor_to_meters", 1.0)
+        tot_segs = sum(len(l.get("paths", [])) for l in layers.values())
+        tot_len = 0.0
+        for l in layers.values():
+            for p in l.get("paths", []):
+                for i in range(len(p) - 1):
+                    tot_len += math.hypot(p[i + 1][0] - p[i][0], p[i + 1][1] - p[i][1]) * linear_scale
+
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Total CAD Layers", f"{len(layers)} Layers", "Model Space")
+        c2.metric("Total Segments", f"{tot_segs} Paths", "Linework Entities")
+        c3.metric("Total Linework Length", f"{tot_len:.1f} m", "100% Vector Fidelity")
+        c4.metric("Color Representation", "AutoCAD Native", "RGB / ACI Palette")
+
+        rows = []
+        for lname, ldata in sorted(layers.items()):
+            paths = ldata.get("paths", [])
+            layer_len = 0.0
+            for p in paths:
+                for i in range(len(p) - 1):
+                    layer_len += math.hypot(p[i + 1][0] - p[i][0], p[i + 1][1] - p[i][1]) * linear_scale
+            rows.append(
+                {
+                    "Layer Name": lname,
+                    "Polyline Segments": len(paths),
+                    "Total Linework (m)": f"{layer_len:.1f}",
+                    "Native CAD Color": ldata.get("color", "#FFFFFF"),
+                }
+            )
+        if rows:
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        else:
+            st.info("No AutoCAD layer data available.")
 
     # Spatial Coordinate Inspector (Expandable)
     with st.expander("🔬 Detailed Spatial Entity Coordinates (X, Y Inspector)"):
@@ -762,12 +1038,13 @@ with tab1:
         for b in getattr(takeoff, "block_instances", []):
             spatial_rows.append(
                 {
-                    "Entity": "Block Symbol",
+                    "Entity": "MEP / Block Symbol",
                     "Name": b.get("name", "Unknown"),
                     "Trade Category": b.get("trade", "General"),
-                    "X Pos": f"{b.get('x', 0.0):.2f}",
-                    "Y Pos": f"{b.get('y', 0.0):.2f}",
+                    "X Pos (m)": f"{b.get('x', 0.0):.2f}",
+                    "Y Pos (m)": f"{b.get('y', 0.0):.2f}",
                     "Layer": b.get("layer", "0"),
+                    "Synthesized": "Yes" if b.get("is_synthesized") else "Native CAD Block",
                 }
             )
         for op in getattr(takeoff, "openings", []):
@@ -776,9 +1053,10 @@ with tab1:
                     "Entity": f"Opening ({op.type})",
                     "Name": op.id,
                     "Trade Category": "Openings - Doors & Windows",
-                    "X Pos": "On Wall",
-                    "Y Pos": "On Wall",
+                    "X Pos (m)": f"{op.x:.2f}" if getattr(op, "x", None) is not None else "On Wall",
+                    "Y Pos (m)": f"{op.y:.2f}" if getattr(op, "y", None) is not None else "On Wall",
                     "Layer": op.layer,
+                    "Synthesized": "No",
                 }
             )
         if spatial_rows:
