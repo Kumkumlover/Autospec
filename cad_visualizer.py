@@ -49,6 +49,50 @@ class CadVisualizer:
         self.takeoff = takeoff
 
     @staticmethod
+    def _adjust_color_for_theme(color_hex: str, theme: str) -> str:
+        """Adjusts CAD entity colors so they remain high-contrast on light or dark canvas."""
+        c = (color_hex or "#FFFFFF").lower().strip()
+        if theme == "light":
+            # If CAD color is white/light, convert to dark charcoal ink
+            if c in ("#ffffff", "#fff", "#f8fafc", "#f1f5f9", "#e2e8f0", "#cbd5e1", "white"):
+                return "#1E293B"
+            elif c in ("#ffff00", "#ff0", "yellow"):
+                return "#D97706"
+            elif c in ("#00ffff", "#0ff", "cyan"):
+                return "#0284C7"
+            elif c in ("#00ff00", "#0f0", "lime"):
+                return "#15803D"
+        else:  # dark or blueprint
+            # If CAD color is black/dark, convert to crisp bright white
+            if c in ("#000000", "#000", "#0f172a", "#1e293b", "black"):
+                return "#F8FAFC"
+            elif c in ("#0000ff", "#00f", "blue"):
+                return "#38BDF8"
+            elif c in ("#7f6f3f", "#7f5f3f", "#7f3f00"):
+                return "#FDE047" if theme == "dark" else "#E0F2FE"
+        return color_hex
+
+    @classmethod
+    def _layer_friendly_name(cls, layer_name: str) -> str:
+        """Assigns an architectural category prefix to native CAD layers for intuitive legend display."""
+        import re
+
+        u = layer_name.upper()
+        if re.search(r"WALL|MURO|PARED|BRICK|COL|PILAR|STRUCTURE|_MARGINLINE|_WALL|PARTITION", u):
+            return f"🏛️ Walls ({layer_name})"
+        elif re.search(r"DOOR|PUERT|ENTRY|_DOOR", u):
+            return f"🚪 Doors ({layer_name})"
+        elif re.search(r"WINDOW|VENTAN|GLAZ|^W$|_WINDOW|_VENT", u):
+            return f"🪟 Windows ({layer_name})"
+        elif re.search(r"STAIR|ESCAL|ELEV|ASCENS|LIFT|CORE", u):
+            return f"🪜 Stairs ({layer_name})"
+        elif re.search(r"FURN|MUEBL|BED|CAMA|WC|BANO|EQUIP|KITCH|COCIN|SOFA|TABLE|MESA|DESK|CHAIR", u):
+            return f"🛋️ Furniture ({layer_name})"
+        elif re.search(r"DIM|COTA|TEXT|ANNO", u):
+            return f"📏 Dimensions ({layer_name})"
+        return f"📐 Layer: {layer_name}"
+
+    @staticmethod
     def _flatten_paths_to_xy(paths: list[list[tuple[float, float]]]) -> tuple[list[float | None], list[float | None]]:
         """Flattens a list of 2D coordinate paths into single Plotly line arrays separated by None."""
         xs: list[float | None] = []
@@ -66,18 +110,24 @@ class CadVisualizer:
         self,
         visible_trades: list[str] | None = None,
         visible_layers: list[str] | None = None,
+        visible_cad_layers: list[str] | None = None,
         label_mode: str = "none",
         focus_mode: str = "blueprint",
         show_opening_labels: bool | None = None,
         show_block_labels: bool | None = None,
+        show_cad_text: bool = True,
+        highlight_walls: bool = True,
+        highlight_floors: bool = True,
+        highlight_openings: bool = True,
+        highlight_fixtures: bool = True,
         plot_height: int = 650,
         dark_mode: bool = True,
         theme: str = "dark",  # "dark", "blueprint", "light"
     ) -> go.Figure:
         """Constructs a two-tier interactive Plotly CAD vector canvas.
 
-        Tier A: Base Architectural CAD Linework (Walls, Doors, Windows, Stairs, Furniture)
-        Tier B: AutoSpec Takeoff Highlights (Statutory IS 1200 Openings, Floor Boundaries, SKUs)
+        Tier A: Native AutoCAD Model Space Linework (100% Vector Fidelity across all CAD layers)
+        Tier B: AutoSpec Takeoff Highlights (Differentiable Colored Markups linked to the BOQ)
         """
         # Backward-compatibility parameter mapping
         if show_block_labels is True:
@@ -90,7 +140,6 @@ class CadVisualizer:
         fig = go.Figure()
 
         # Resolve Theme & High-Contrast Palette
-        # Normalize theme choice
         theme_lower = (theme or "dark").lower()
         if "light" in theme_lower or (not dark_mode and "blue" not in theme_lower and "dark" not in theme_lower):
             active_theme = "light"
@@ -108,7 +157,7 @@ class CadVisualizer:
             stair_color = "#CBD5E1"
             furniture_color = "#60A5FA" if focus_mode != "takeoff_focus" else "rgba(96, 165, 250, 0.25)"
             plan_line_color = "#E0F2FE"
-            room_fill_color = "rgba(56, 189, 248, 0.12)"
+            room_fill_color = "rgba(56, 189, 248, 0.14)"
             room_line_color = "#38BDF8"
             trade_palette = self.TRADE_PALETTE_DARK
             marker_border = "#FFFFFF"
@@ -125,7 +174,7 @@ class CadVisualizer:
             stair_color = "#475569"  # Deep Slate
             furniture_color = "#64748B" if focus_mode != "takeoff_focus" else "rgba(100, 116, 139, 0.25)"
             plan_line_color = "#1E293B"  # Architectural Ink
-            room_fill_color = "rgba(16, 185, 129, 0.12)"
+            room_fill_color = "rgba(16, 185, 129, 0.14)"
             room_line_color = "#059669"
             trade_palette = self.TRADE_PALETTE_LIGHT
             marker_border = "#0F172A"
@@ -134,7 +183,7 @@ class CadVisualizer:
             legend_bg = "rgba(255, 255, 255, 0.92)"
             legend_border = "#CBD5E0"
         else:  # "dark" / AutoCAD Model Space (DEFAULT!)
-            bg_color = "#0D1117"  # Deep midnight dark matching Streamlit!
+            bg_color = "#0D1117"  # Deep midnight dark matching AutoCAD / Streamlit!
             grid_color = "#1E293B"
             wall_color = "#F8FAFC"  # Crisp bright white!
             door_color = "#FB923C"  # Vibrant amber orange!
@@ -142,7 +191,7 @@ class CadVisualizer:
             stair_color = "#94A3B8"  # Crisp silver slate!
             furniture_color = "#64748B" if focus_mode != "takeoff_focus" else "rgba(100, 116, 139, 0.25)"
             plan_line_color = "#E2E8F0"  # Bright crisp linework!
-            room_fill_color = "rgba(16, 185, 129, 0.14)"
+            room_fill_color = "rgba(16, 185, 129, 0.16)"
             room_line_color = "#10B981"
             trade_palette = self.TRADE_PALETTE_DARK
             marker_border = "#000000"
@@ -151,6 +200,8 @@ class CadVisualizer:
             legend_bg = "rgba(13, 17, 23, 0.90)"
             legend_border = "#30363D"
 
+        cad_layers = getattr(self.takeoff, "cad_layers", {})
+        cad_texts = getattr(self.takeoff, "cad_texts", [])
         linework = getattr(self.takeoff, "architectural_linework", {})
         wall_segments = getattr(self.takeoff, "wall_segments", [])
         room_polygons = getattr(self.takeoff, "room_polygons", [])
@@ -158,156 +209,225 @@ class CadVisualizer:
         block_instances = getattr(self.takeoff, "block_instances", [])
         bounding_box = getattr(self.takeoff, "bounding_box", {})
 
-        # Default visible layers if not provided
-        if visible_layers is None:
-            visible_layers = ["Walls", "Doors", "Windows", "Stairs", "Furniture"]
-
         # =====================================================================
-        # TIER A: BASE ARCHITECTURAL CAD LINEWORK
+        # TIER A: BASE AUTOCAD MODEL SPACE LINEWORK (100% Vector Fidelity)
         # =====================================================================
+        if focus_mode != "takeoff_only":
+            opacity = 0.22 if focus_mode == "takeoff_focus" else 1.0
 
-        # 1. Civil Masonry Walls
-        if "Walls" in visible_layers and (visible_trades is None or any("Wall" in t for t in visible_trades)):
-            wall_paths = linework.get("walls", [])
-            if wall_paths:
-                w_xs, w_ys = self._flatten_paths_to_xy(wall_paths)
+            if cad_layers:
+                # 1. Primary path: Render each native AutoCAD layer with its native CAD color!
+                for layer_name, layer_data in sorted(cad_layers.items()):
+                    if visible_cad_layers is not None and layer_name not in visible_cad_layers:
+                        continue
+                    friendly_name = self._layer_friendly_name(layer_name)
+
+                    # Trade filter check if visible_trades is passed
+                    if visible_trades is not None:
+                        has_civil = any("Wall" in t or "Civil" in t or "Arch" in t for t in visible_trades)
+                        has_door = any("Door" in t or "Opening" in t for t in visible_trades)
+                        has_win = any("Window" in t or "Opening" in t for t in visible_trades)
+                        has_furn = any("Furn" in t for t in visible_trades)
+
+                        if "Walls" in friendly_name and not has_civil:
+                            continue
+                        if "Doors" in friendly_name and not has_door:
+                            continue
+                        if "Windows" in friendly_name and not has_win:
+                            continue
+                        if "Furniture" in friendly_name and not has_furn:
+                            continue
+
+                    paths = layer_data.get("paths", [])
+                    if not paths:
+                        continue
+                    xs, ys = self._flatten_paths_to_xy(paths)
+                    if not xs:
+                        continue
+
+                    raw_color = layer_data.get("color", "#FFFFFF")
+                    layer_color = self._adjust_color_for_theme(raw_color, active_theme)
+                    line_w = 1.6 if "WALL" in layer_name.upper() or "MURO" in layer_name.upper() else 1.1
+
+                    fig.add_trace(
+                        go.Scatter(
+                            x=xs,
+                            y=ys,
+                            mode="lines",
+                            line={"color": layer_color, "width": line_w},
+                            opacity=opacity,
+                            name=f"{friendly_name} ({len(paths)} segs)",
+                            legendgroup="AutoCAD Linework",
+                            legendgrouptitle_text="🏛️ AutoCAD Model Space Layers",
+                            hoverinfo="text",
+                            hovertext=f"<b>AutoCAD Layer: {layer_name}</b><br>Entities: {len(paths)}<br>Native Color: {raw_color}",
+                        )
+                    )
+
+                # Native Text & Dimension Annotations
+                if show_cad_text and cad_texts:
+                    txs = [t["x"] for t in cad_texts]
+                    tys = [t["y"] for t in cad_texts]
+                    ttxts = [t["text"] for t in cad_texts]
+                    thovers = [f"<b>{t['text']}</b><br>CAD Layer: {t.get('layer', '')}" for t in cad_texts]
+
+                    fig.add_trace(
+                        go.Scatter(
+                            x=txs,
+                            y=tys,
+                            mode="text" if label_mode in ("all", "text") else "markers",
+                            text=ttxts,
+                            textposition="middle center",
+                            textfont={"size": 9, "color": title_color},
+                            marker={"size": 4, "color": axis_color, "opacity": 0.5},
+                            opacity=opacity,
+                            hovertext=thovers,
+                            hoverinfo="text",
+                            name=f"📝 CAD Text & Dimensions ({len(cad_texts)} items)",
+                            legendgroup="AutoCAD Linework",
+                            visible=True if label_mode in ("all", "text") else "legendonly",
+                        )
+                    )
             else:
-                w_xs, w_ys = [], []
+                # 2. Fallback path for synthetic/mock CAD without cad_layers
+                if visible_layers is None or "Walls" in visible_layers:
+                    wall_paths = linework.get("walls", [])
+                    if wall_paths:
+                        w_xs, w_ys = self._flatten_paths_to_xy(wall_paths)
+                    else:
+                        w_xs, w_ys = [], []
+                        for w in wall_segments:
+                            w_xs.extend([w["x1"], w["x2"], None])
+                            w_ys.extend([w["y1"], w["y2"], None])
+                    if w_xs:
+                        fig.add_trace(
+                            go.Scatter(
+                                x=w_xs,
+                                y=w_ys,
+                                mode="lines",
+                                line={"color": wall_color, "width": 2.2},
+                                opacity=opacity,
+                                name=f"🏛️ Walls ({len(wall_segments) or len(wall_paths)} segs)",
+                                legendgroup="AutoCAD Linework",
+                                legendgrouptitle_text="🏛️ Architectural Linework",
+                                hoverinfo="text",
+                                hovertext=f"<b>Civil Masonry Wall</b><br>Gross Wall Length: {getattr(self.takeoff, 'wall_length_m', 0.0):.1f} m",
+                            )
+                        )
+                # Doors
+                if (visible_layers is None or "Doors" in visible_layers) and linework.get("doors"):
+                    d_xs, d_ys = self._flatten_paths_to_xy(linework["doors"])
+                    if d_xs:
+                        fig.add_trace(
+                            go.Scatter(
+                                x=d_xs,
+                                y=d_ys,
+                                mode="lines",
+                                line={"color": door_color, "width": 1.3},
+                                opacity=opacity,
+                                name=f"🚪 Doors & Swings ({len(linework['doors'])} paths)",
+                                legendgroup="AutoCAD Linework",
+                            )
+                        )
+                # Windows
+                if (visible_layers is None or "Windows" in visible_layers) and linework.get("windows"):
+                    win_xs, win_ys = self._flatten_paths_to_xy(linework["windows"])
+                    if win_xs:
+                        fig.add_trace(
+                            go.Scatter(
+                                x=win_xs,
+                                y=win_ys,
+                                mode="lines",
+                                line={"color": window_color, "width": 1.5},
+                                opacity=opacity,
+                                name=f"🪟 Windows ({len(linework['windows'])} paths)",
+                                legendgroup="AutoCAD Linework",
+                            )
+                        )
+                # Stairs
+                if (visible_layers is None or "Stairs" in visible_layers) and linework.get("stairs"):
+                    st_xs, st_ys = self._flatten_paths_to_xy(linework["stairs"])
+                    if st_xs:
+                        fig.add_trace(
+                            go.Scatter(
+                                x=st_xs,
+                                y=st_ys,
+                                mode="lines",
+                                line={"color": stair_color, "width": 1.1},
+                                opacity=opacity,
+                                name=f"🪜 Stairs & Core ({len(linework['stairs'])} paths)",
+                                legendgroup="AutoCAD Linework",
+                            )
+                        )
+                # Furniture
+                if (visible_layers is None or "Furniture" in visible_layers) and linework.get("furniture"):
+                    f_xs, f_ys = self._flatten_paths_to_xy(linework["furniture"])
+                    if f_xs:
+                        fig.add_trace(
+                            go.Scatter(
+                                x=f_xs,
+                                y=f_ys,
+                                mode="lines",
+                                line={"color": furniture_color, "width": 0.8},
+                                opacity=opacity,
+                                name=f"🛋️ Furniture ({len(linework['furniture'])} paths)",
+                                legendgroup="AutoCAD Linework",
+                            )
+                        )
+                # Other
+                if linework.get("other"):
+                    o_xs, o_ys = self._flatten_paths_to_xy(linework["other"][:5000])
+                    if o_xs:
+                        fig.add_trace(
+                            go.Scatter(
+                                x=o_xs,
+                                y=o_ys,
+                                mode="lines",
+                                line={"color": plan_line_color, "width": 1.5},
+                                opacity=opacity,
+                                name=f"🏛️ Plan Linework ({len(linework['other'])} segs)",
+                                legendgroup="AutoCAD Linework",
+                            )
+                        )
+
+        # =====================================================================
+        # TIER B: AUTOSPEC TAKEOFF MEASUREMENT OVERLAYS & HIGHLIGHTS
+        # =====================================================================
+        if focus_mode != "linework_only":
+            # 1. Civil Wall Takeoff Measurements (Gross Wall Area)
+            if highlight_walls and wall_segments and (visible_trades is None or any("Wall" in t or "Civil" in t or "Masonry" in t or "Plaster" in t for t in visible_trades)):
+                w_xs: list[float | None] = []
+                w_ys: list[float | None] = []
                 for w in wall_segments:
                     w_xs.extend([w["x1"], w["x2"], None])
                     w_ys.extend([w["y1"], w["y2"], None])
 
-            if w_xs:
+                wall_hl_color = "#FF3366"  # Glowing Neon Coral
                 fig.add_trace(
                     go.Scatter(
                         x=w_xs,
                         y=w_ys,
                         mode="lines",
-                        line={"color": wall_color, "width": 2.4},
-                        name=f"🏛️ Walls ({len(wall_segments) or len(wall_paths)} segs)",
-                        legendgroup="Base Linework",
-                        legendgrouptitle_text="🏛️ Architectural Linework",
+                        line={"color": wall_hl_color, "width": 3.0},
+                        name=f"🧱 Measured Walls ({getattr(self.takeoff, 'wall_length_m', 0.0):.1f}m / {getattr(self.takeoff, 'total_wall_area_sqm', 0.0):.1f}m²)",
+                        legendgroup="Takeoff Highlights",
+                        legendgrouptitle_text="🎯 AutoSpec Takeoff Highlights (BOQ Link)",
                         hoverinfo="text",
-                        hovertext=f"<b>Civil Masonry Wall</b><br>Gross Wall Length: {getattr(self.takeoff, 'wall_length_m', 0.0):.1f} m<br>Gross Wall Area: {getattr(self.takeoff, 'total_wall_area_sqm', 0.0):.1f} m²",
+                        hovertext=(
+                            f"<b>Civil Masonry Wall Takeoff</b><br>"
+                            f"Total Wall Length: {getattr(self.takeoff, 'wall_length_m', 0.0):.1f} m<br>"
+                            f"Standard Wall Height: 3.00 m<br>"
+                            f"Gross Wall Area: {getattr(self.takeoff, 'total_wall_area_sqm', 0.0):.1f} m²<br>"
+                            f"BOQ Trade: Civil Masonry & Internal Plastering"
+                        ),
                     )
                 )
 
-        # 2. Doors & Swing Arcs
-        if (
-            "Doors" in visible_layers
-            and (visible_trades is None or any("Door" in t or "Opening" in t for t in visible_trades))
-            and linework.get("doors")
-        ):
-            d_paths = linework["doors"]
-            d_xs, d_ys = self._flatten_paths_to_xy(d_paths)
-            if d_xs:
-                fig.add_trace(
-                    go.Scatter(
-                        x=d_xs,
-                        y=d_ys,
-                        mode="lines",
-                        line={"color": door_color, "width": 1.3},
-                        name=f"🚪 Doors & Swings ({len(d_paths)} paths)",
-                        legendgroup="Base Linework",
-                        hoverinfo="text",
-                        hovertext="<b>Door Leaf & Swing Arc</b><br>Layer: Puertas / A-DOOR",
-                    )
-                )
-
-        # 3. Windows & Glazing Mullions
-        if (
-            "Windows" in visible_layers
-            and (visible_trades is None or any("Window" in t or "Opening" in t for t in visible_trades))
-            and linework.get("windows")
-        ):
-            win_paths = linework["windows"]
-            win_xs, win_ys = self._flatten_paths_to_xy(win_paths)
-            if win_xs:
-                fig.add_trace(
-                    go.Scatter(
-                        x=win_xs,
-                        y=win_ys,
-                        mode="lines",
-                        line={"color": window_color, "width": 1.5},
-                        name=f"🪟 Windows ({len(win_paths)} paths)",
-                        legendgroup="Base Linework",
-                        hoverinfo="text",
-                        hovertext="<b>Window Frame & Glazing</b><br>Layer: WINDOW / A-GLAZ",
-                    )
-                )
-
-        # 4. Stairs & Vertical Core Shafts
-        if (
-            "Stairs" in visible_layers
-            and (visible_trades is None or any("Stair" in t or "Wall" in t for t in visible_trades))
-            and linework.get("stairs")
-        ):
-            st_paths = linework["stairs"]
-            st_xs, st_ys = self._flatten_paths_to_xy(st_paths)
-            if st_xs:
-                fig.add_trace(
-                    go.Scatter(
-                        x=st_xs,
-                        y=st_ys,
-                        mode="lines",
-                        line={"color": stair_color, "width": 1.1},
-                        name=f"🪜 Stairs & Core ({len(st_paths)} paths)",
-                        legendgroup="Base Linework",
-                        hoverinfo="text",
-                        hovertext="<b>Stairs & Elevator Shaft</b><br>Layer: STAIR / CORE",
-                    )
-                )
-
-        # 5. Built-in Furniture, Equipment & Fixtures
-        if (
-            "Furniture" in visible_layers
-            and (visible_trades is None or any("Furn" in t for t in visible_trades))
-            and linework.get("furniture")
-        ):
-            f_paths = linework["furniture"]
-            f_xs, f_ys = self._flatten_paths_to_xy(f_paths)
-            if f_xs:
-                fig.add_trace(
-                    go.Scatter(
-                        x=f_xs,
-                        y=f_ys,
-                        mode="lines",
-                        line={"color": furniture_color, "width": 0.8},
-                        name=f"🛋️ Furniture ({len(f_paths)} paths)",
-                        legendgroup="Base Linework",
-                        hoverinfo="text",
-                        hovertext="<b>Built-in Furniture & Fixtures</b><br>Tables, Chairs, Beds, Sanitaries",
-                    )
-                )
-
-        # 6. General / Unclassified Plan Linework (Layer 0, Geometry, etc.)
-        other_paths = linework.get("other", [])
-        if other_paths and (not linework.get("walls") or len(linework.get("walls")) < 10):
-            o_xs, o_ys = self._flatten_paths_to_xy(other_paths[:8000])
-            if o_xs:
-                fig.add_trace(
-                    go.Scatter(
-                        x=o_xs,
-                        y=o_ys,
-                        mode="lines",
-                        line={"color": plan_line_color, "width": 1.8},
-                        name=f"🏛️ Plan Linework ({min(len(other_paths), 8000)} segs)",
-                        legendgroup="Base Linework",
-                        legendgrouptitle_text="🏛️ Architectural Linework",
-                        hoverinfo="text",
-                        hovertext="<b>Architectural Plan Geometry</b>",
-                    )
-                )
-
-        # =====================================================================
-        # TIER B: AUTOSPEC TAKEOFF OVERLAYS & HIGHLIGHTS
-        # =====================================================================
-        if focus_mode != "linework_only":
-            # 1. Floor & Room Boundaries
-            if visible_trades is None or any("Floor" in t or "Room" in t for t in visible_trades):
+            # 2. Flooring & Room Polygon Takeoff (Net Floor Area)
+            if highlight_floors and room_polygons:
                 sorted_rooms = sorted(room_polygons, key=lambda r: r.get("area_sqm", 0.0), reverse=True)
-                top_rooms = sorted_rooms[:20]
-                remaining_rooms = sorted_rooms[20:]
+                top_rooms = sorted_rooms[:25]
+                remaining_rooms = sorted_rooms[25:]
 
                 for idx, room in enumerate(top_rooms):
                     pts = room.get("points", [])
@@ -324,12 +444,18 @@ class CadVisualizer:
                                 mode="lines",
                                 fill="toself",
                                 fillcolor=room_fill_color,
-                                line={"color": room_line_color, "width": 1.6, "dash": "dot"},
-                                name=f"📐 Floor Boundary ({area:.0f} m²)",
+                                line={"color": room_line_color, "width": 2.0, "dash": "dot"},
+                                name=f"📐 Measured Floor ({area:.1f} m²)",
                                 legendgroup="Takeoff Highlights",
-                                legendgrouptitle_text="🎯 Takeoff Highlights",
+                                legendgrouptitle_text="🎯 AutoSpec Takeoff Highlights (BOQ Link)" if not (highlight_walls and wall_segments) else None,
                                 showlegend=(idx == 0),
-                                hovertext=f"<b>Measured Floor Area</b><br>Layer: {layer}<br>Area: {area:.2f} m² ({(area * 10.764):.1f} sq.ft)",
+                                hovertext=(
+                                    f"<b>Flooring Takeoff Zone</b><br>"
+                                    f"Layer: {layer}<br>"
+                                    f"Net Floor Area: {area:.2f} m² ({(area * 10.764):.1f} sq.ft)<br>"
+                                    f"BOQ Trade: Flooring & Finishes<br>"
+                                    f"Matched SKU: Vitrified Tiles / Granite"
+                                ),
                                 hoverinfo="text",
                             )
                         )
@@ -361,127 +487,166 @@ class CadVisualizer:
                             )
                         )
 
-            # 2. IS 1200 Opening Deductions
-            if visible_trades is None or any("Opening" in t for t in visible_trades):
-                op_xs, op_ys, op_labels, op_hovers = [], [], [], []
+            # 3. IS 1200 Statutory Deduction Openings (Tier-Coded Markers)
+            if highlight_openings and openings:
+                tier1_xs, tier1_ys, tier1_texts, tier1_hovers = [], [], [], []
+                tier2_xs, tier2_ys, tier2_texts, tier2_hovers = [], [], [], []
+                tier3_xs, tier3_ys, tier3_texts, tier3_hovers = [], [], [], []
+
                 for op in openings:
                     if getattr(op, "x", None) is not None and getattr(op, "y", None) is not None:
                         x, y = op.x, op.y
                     else:
-                        matched_inst = next(
-                            (
-                                b
-                                for b in block_instances
-                                if op.id in b.get("name", "")
-                                or "DOOR" in b.get("name", "").upper()
-                                or "PUERT" in b.get("name", "").upper()
-                            ),
-                            None,
+                        x = (bounding_box.get("min_x", 0) + bounding_box.get("max_x", 10)) / 2
+                        y = (bounding_box.get("min_y", 0) + bounding_box.get("max_y", 10)) / 2
+
+                    lbl = f"{op.id}: {op.width_m:.1f}×{op.height_m:.1f}m" if label_mode in ("openings", "all") else ""
+
+                    if op.area_sqm <= 0.5:
+                        tier_label = "Tier 1 (<= 0.5 m²)"
+                        stat_rule = "Zero Deduction (Exempt from Plaster & Masonry)"
+                        tier1_xs.append(x)
+                        tier1_ys.append(y)
+                        tier1_texts.append(lbl)
+                        tier1_hovers.append(
+                            f"<b>{op.id} — {op.type} Opening</b><br>"
+                            f"Dimensions: {op.width_m:.2f}m × {op.height_m:.2f}m = {op.area_sqm:.2f} m²<br>"
+                            f"<b>IS 1200 Part 12:</b> {tier_label} — {stat_rule}<br>"
+                            f"CAD Reference: {op.cad_ref}"
                         )
-                        if matched_inst:
-                            x, y = matched_inst["x"], matched_inst["y"]
-                        else:
-                            x = (bounding_box.get("min_x", 0) + bounding_box.get("max_x", 10)) / 2
-                            y = (bounding_box.get("min_y", 0) + bounding_box.get("max_y", 10)) / 2
+                    elif op.area_sqm <= 3.0:
+                        tier_label = "Tier 2 (0.5 to 3.0 m²)"
+                        stat_rule = f"Single Face Deducted (-{op.area_sqm:.2f} m²)"
+                        tier2_xs.append(x)
+                        tier2_ys.append(y)
+                        tier2_texts.append(lbl)
+                        tier2_hovers.append(
+                            f"<b>{op.id} — {op.type} Opening</b><br>"
+                            f"Dimensions: {op.width_m:.2f}m × {op.height_m:.2f}m = {op.area_sqm:.2f} m²<br>"
+                            f"<b>IS 1200 Part 12:</b> {tier_label} — {stat_rule}<br>"
+                            f"CAD Reference: {op.cad_ref}"
+                        )
+                    else:
+                        tier_label = "Tier 3 (> 3.0 m²)"
+                        stat_rule = f"Both Faces Deducted (-{2 * op.area_sqm:.2f} m²) + Reveals Added"
+                        tier3_xs.append(x)
+                        tier3_ys.append(y)
+                        tier3_texts.append(lbl)
+                        tier3_hovers.append(
+                            f"<b>{op.id} — {op.type} Opening</b><br>"
+                            f"Dimensions: {op.width_m:.2f}m × {op.height_m:.2f}m = {op.area_sqm:.2f} m²<br>"
+                            f"<b>IS 1200 Part 12:</b> {tier_label} — {stat_rule}<br>"
+                            f"CAD Reference: {op.cad_ref}"
+                        )
 
-                    op_xs.append(x)
-                    op_ys.append(y)
-                    op_labels.append(
-                        f"{op.id}: {op.width_m:.1f}×{op.height_m:.1f}m" if label_mode in ("openings", "all") else ""
-                    )
-                    op_hovers.append(
-                        f"<b>{op.id} — {op.type} Opening</b><br>"
-                        f"Dimensions: {op.width_m:.2f} m × {op.height_m:.2f} m<br>"
-                        f"Opening Area: {op.area_sqm:.2f} m²<br>"
-                        f"<b>IS 1200 Status:</b> {'Deducted from Wall & Plaster' if op.area_sqm > 0.1 else 'Exempt (<= 0.1 m²)'}<br>"
-                        f"CAD Reference: {op.cad_ref}"
-                    )
-
-                if op_xs:
-                    op_marker_color = "#FB923C" if active_theme != "light" else "#C2410C"
-                    op_border_color = "#C2410C" if active_theme != "light" else "#7C2D12"
+                # Tier 1 Openings
+                if tier1_xs:
                     fig.add_trace(
                         go.Scatter(
-                            x=op_xs,
-                            y=op_ys,
+                            x=tier1_xs,
+                            y=tier1_ys,
                             mode="markers+text" if label_mode in ("openings", "all") else "markers",
-                            marker={
-                                "size": 12,
-                                "color": op_marker_color,
-                                "symbol": "square-cross",
-                                "line": {"color": op_border_color, "width": 1.5},
-                            },
-                            text=op_labels,
+                            marker={"size": 13, "color": "#10B981", "symbol": "square-open-dot", "line": {"color": "#059669", "width": 2}},
+                            text=tier1_texts,
                             textposition="bottom center",
-                            textfont={"size": 9, "color": op_marker_color},
-                            hovertext=op_hovers,
+                            textfont={"size": 9, "color": "#10B981"},
+                            hovertext=tier1_hovers,
                             hoverinfo="text",
-                            name=f"🏷️ Openings ({len(op_xs)} Deductions)",
+                            name=f"🟢 Openings (IS 1200 Tier 1: Exempt) ({len(tier1_xs)} nos)",
                             legendgroup="Takeoff Highlights",
-                            legendgrouptitle_text="🎯 Takeoff Highlights" if not room_polygons else None,
+                        )
+                    )
+                # Tier 2 Openings
+                if tier2_xs:
+                    fig.add_trace(
+                        go.Scatter(
+                            x=tier2_xs,
+                            y=tier2_ys,
+                            mode="markers+text" if label_mode in ("openings", "all") else "markers",
+                            marker={"size": 14, "color": "#F59E0B", "symbol": "diamond-wide", "line": {"color": "#B45309", "width": 2}},
+                            text=tier2_texts,
+                            textposition="bottom center",
+                            textfont={"size": 9, "color": "#F59E0B"},
+                            hovertext=tier2_hovers,
+                            hoverinfo="text",
+                            name=f"🟠 Openings (IS 1200 Tier 2: 1-Face Deduct) ({len(tier2_xs)} nos)",
+                            legendgroup="Takeoff Highlights",
+                        )
+                    )
+                # Tier 3 Openings
+                if tier3_xs:
+                    fig.add_trace(
+                        go.Scatter(
+                            x=tier3_xs,
+                            y=tier3_ys,
+                            mode="markers+text" if label_mode in ("openings", "all") else "markers",
+                            marker={"size": 16, "color": "#EF4444", "symbol": "hexagon", "line": {"color": "#991B1B", "width": 2}},
+                            text=tier3_texts,
+                            textposition="bottom center",
+                            textfont={"size": 9, "color": "#EF4444"},
+                            hovertext=tier3_hovers,
+                            hoverinfo="text",
+                            name=f"🔴 Openings (IS 1200 Tier 3: 2-Faces + Reveals) ({len(tier3_xs)} nos)",
+                            legendgroup="Takeoff Highlights",
                         )
                     )
 
-            # 3. Block Symbols Grouped by Trade
-            trade_groups: dict[str, list[dict[str, Any]]] = {}
-            for inst in block_instances:
-                trade = inst.get("trade", "Other Architectural Fittings")
-                trade_groups.setdefault(trade, []).append(inst)
+            # 4. Classified Fixtures / Block Symbols (MEP & B2B Pins)
+            if highlight_fixtures and block_instances:
+                trade_groups: dict[str, list[dict[str, Any]]] = {}
+                for inst in block_instances:
+                    trade = inst.get("trade", "Other Architectural Fittings")
+                    trade_groups.setdefault(trade, []).append(inst)
 
-            trade_icons = {
-                "Electrical - Lighting": "💡",
-                "Electrical - Fans": "🌀",
-                "Electrical - Switches & Sockets": "🔌",
-                "Plumbing - Sanitaryware": "🚿",
-                "Furniture & Equipment": "🪑",
-                "Other Architectural Fittings": "📦",
-            }
+                trade_icons = {
+                    "Electrical - Lighting": "💡",
+                    "Electrical - Fans": "🌀",
+                    "Electrical - Switches & Sockets": "🔌",
+                    "Plumbing - Sanitaryware": "🚿",
+                    "Furniture & Equipment": "🪑",
+                    "Other Architectural Fittings": "📦",
+                }
 
-            for trade, instances in sorted(trade_groups.items()):
-                # Check trade visibility filter
-                if visible_trades is not None:
-                    short_name = trade.split(" - ")[-1]
-                    if (
-                        trade not in visible_trades
-                        and short_name not in visible_trades
-                        and not any(short_name in vt for vt in visible_trades)
-                    ):
-                        continue
+                for trade, instances in sorted(trade_groups.items()):
+                    if visible_trades is not None:
+                        short_name = trade.split(" - ")[-1]
+                        if trade not in visible_trades and short_name not in visible_trades and not any(short_name in vt for vt in visible_trades):
+                            continue
 
-                style = trade_palette.get(trade, trade_palette.get("Other Architectural Fittings", {}))
-                icon = trade_icons.get(trade, "📍")
-                bx = [b["x"] for b in instances]
-                by = [b["y"] for b in instances]
-                b_texts = [b["name"] if label_mode == "all" else "" for b in instances]
-                b_hovers = [
-                    f"<b>{b['name']}</b><br>"
-                    f"Trade: {trade}<br>"
-                    f"Layer: {b['layer']}<br>"
-                    f"Position: ({b['x']:.2f}, {b['y']:.2f})<br>"
-                    f"Rotation: {b.get('rotation', 0):.0f}°"
-                    for b in instances
-                ]
+                    style = trade_palette.get(trade, trade_palette.get("Other Architectural Fittings", {}))
+                    icon = trade_icons.get(trade, "📍")
+                    bx = [b["x"] for b in instances]
+                    by = [b["y"] for b in instances]
+                    b_texts = [b["name"] if label_mode == "all" else "" for b in instances]
+                    b_hovers = [
+                        f"<b>{b['name']}</b><br>"
+                        f"Trade: {trade}<br>"
+                        f"Layer: {b['layer']}<br>"
+                        f"Position: ({b['x']:.2f}, {b['y']:.2f})<br>"
+                        f"Rotation: {b.get('rotation', 0):.0f}°"
+                        for b in instances
+                    ]
 
-                fig.add_trace(
-                    go.Scatter(
-                        x=bx,
-                        y=by,
-                        mode="markers+text" if label_mode == "all" else "markers",
-                        marker={
-                            "size": 10,
-                            "color": style.get("color", "#FACC15"),
-                            "symbol": style.get("symbol", "circle"),
-                            "line": {"color": marker_border, "width": 1.2},
-                        },
-                        text=b_texts,
-                        textposition="top right",
-                        textfont={"size": 8, "color": style.get("color", title_color)},
-                        hovertext=b_hovers,
-                        hoverinfo="text",
-                        name=f"{icon} {trade.split(' - ')[-1]} ({len(instances)} pcs)",
-                        legendgroup="Takeoff Highlights",
+                    fig.add_trace(
+                        go.Scatter(
+                            x=bx,
+                            y=by,
+                            mode="markers+text" if label_mode == "all" else "markers",
+                            marker={
+                                "size": 11,
+                                "color": style.get("color", "#FACC15"),
+                                "symbol": style.get("symbol", "circle"),
+                                "line": {"color": marker_border, "width": 1.5},
+                            },
+                            text=b_texts,
+                            textposition="top right",
+                            textfont={"size": 8, "color": style.get("color", title_color)},
+                            hovertext=b_hovers,
+                            hoverinfo="text",
+                            name=f"{icon} {trade.split(' - ')[-1]} ({len(instances)} pcs)",
+                            legendgroup="Takeoff Highlights",
+                        )
                     )
-                )
 
         # =====================================================================
         # CAMERA & FOCUS BOUNDS (Auto-focus strictly to building geometry)

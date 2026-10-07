@@ -958,3 +958,8 @@ class BoqEngine:
 
         wb.save(output_path)
         return output_path
+
+
+def export_to_excel(boq_result: dict[str, Any], output_path: str) -> str:
+    """Convenience function to export a BOQ result dictionary to an Excel workbook."""
+    return BoqEngine().export_to_excel(boq_result, output_path)

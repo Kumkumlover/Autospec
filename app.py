@@ -471,8 +471,8 @@ else:
 boq_key = f"{cache_key}_{spec_key}"
 if st.session_state.get("_last_boq_key") != boq_key or "boq_result" not in st.session_state:
     with st.spinner("📊 Compiling statutory IS 1200 deductions & B2B procurement BOQ..."):
-        boq_engine = BoqEngine()
-        boq_result = boq_engine.generate_boq(takeoff, spec, wall_height_m=wall_height, wall_thickness_m=wall_thickness)
+        boq_gen = BoqEngine()
+        boq_result = boq_gen.generate_boq(takeoff, spec, wall_height_m=wall_height, wall_thickness_m=wall_thickness)
         st.session_state["boq_result"] = boq_result
         st.session_state["_last_boq_key"] = boq_key
 else:
@@ -563,14 +563,21 @@ with tab1:
     with ctrl_col3:
         focus_choice = st.selectbox(
             "Visual Focus Mode",
-            ["Full Blueprint + Takeoff", "Takeoff Audit (Dim Furniture)", "Linework Only (Clean Plan)"],
+            [
+                "AutoCAD + Takeoff Highlights",
+                "Takeoff Audit (Ghost Base CAD 20%)",
+                "Pure AutoCAD (Linework Only)",
+                "Takeoff Only (Hide Base CAD)",
+            ],
             index=0,
-            help="Takeoff Audit dims furniture linework to 20% opacity so walls, openings, and takeoff badges pop out vividly.",
+            help="Takeoff Audit dims base CAD linework to 20% opacity so walls, openings, and takeoff badges pop out vividly.",
         )
         if "Audit" in focus_choice:
             focus_mode = "takeoff_focus"
-        elif "Linework" in focus_choice:
+        elif "Pure" in focus_choice:
             focus_mode = "linework_only"
+        elif "Takeoff Only" in focus_choice:
+            focus_mode = "takeoff_only"
         else:
             focus_mode = "blueprint"
     with ctrl_col4:
@@ -590,20 +597,47 @@ with tab1:
         canvas_height = st.slider("Canvas Height", min_value=500, max_value=850, value=650, step=50)
 
     # Organized Layer & Trade Visibility Controls
-    with st.expander("🎨 Detailed Layer & Trade Visibility Controls", expanded=False):
-        fl_col1, fl_col2 = st.columns(2)
+    with st.expander("🛠️ AutoCAD Layer Properties Manager & Takeoff Highlight Controls", expanded=False):
+        fl_col1, fl_col2 = st.columns([1.1, 1.0])
         with fl_col1:
-            base_layer_options = ["Walls", "Doors", "Windows", "Stairs", "Furniture"]
-            selected_base_layers = st.multiselect(
-                "Base Architectural Drawing Layers:",
-                options=base_layer_options,
-                default=base_layer_options,
-                help="Toggle architectural CAD linework categories",
-            )
+            st.markdown("**AutoCAD Model Space Layers**")
+            cad_layers = getattr(takeoff, "cad_layers", {})
+            if cad_layers:
+                layer_display_map = {
+                    f"{l} ({data.get('count', 0)} segs)": l
+                    for l, data in sorted(cad_layers.items())
+                }
+                selected_display = st.multiselect(
+                    "Visible CAD Drawing Layers:",
+                    options=list(layer_display_map.keys()),
+                    default=list(layer_display_map.keys()),
+                    help="Toggle native AutoCAD layers extracted from the file",
+                )
+                selected_raw_cad_layers = [layer_display_map[d] for d in selected_display]
+                selected_base_layers = None
+            else:
+                base_layer_options = ["Walls", "Doors", "Windows", "Stairs", "Furniture"]
+                selected_base_layers = st.multiselect(
+                    "Base Architectural Drawing Layers:",
+                    options=base_layer_options,
+                    default=base_layer_options,
+                    help="Toggle architectural CAD linework categories",
+                )
+                selected_raw_cad_layers = None
+
+            show_cad_text = st.checkbox("📝 Show Native CAD Text & Dimension Annotations", value=True)
+
         with fl_col2:
+            st.markdown("**AutoSpec Takeoff Highlights (BOQ Link)**")
+            hl_c1, hl_c2 = st.columns(2)
+            with hl_c1:
+                hl_walls = st.checkbox("🧱 Highlight Measured Walls", value=True, help="Glowing #FF3366 coral lines over wall centerlines")
+                hl_floors = st.checkbox("📐 Highlight Floor Polygons", value=True, help="Translucent emerald polygons for net floor area")
+            with hl_c2:
+                hl_openings = st.checkbox("🏷️ Highlight IS 1200 Openings", value=True, help="Tier 1/2/3 deduction badges at physical coordinates")
+                hl_fixtures = st.checkbox("📍 Highlight MEP Fixture Pins", value=True, help="Classified downlights, fans, sockets & plumbing")
+
             takeoff_options = [
-                "Openings (IS 1200 Deductions)",
-                "Flooring & Rooms",
                 "Electrical - Lighting",
                 "Electrical - Fans",
                 "Electrical - Switches & Sockets",
@@ -612,20 +646,26 @@ with tab1:
                 "Other Architectural Fittings",
             ]
             selected_takeoff_trades = st.multiselect(
-                "Takeoff Highlight Overlays:",
+                "Filter Fixture Trades:",
                 options=takeoff_options,
                 default=takeoff_options,
-                help="Toggle AutoSpec takeoff measurement overlays and trade pins",
+                help="Filter MEP fixture symbols by trade",
             )
 
     visualizer = CadVisualizer(takeoff)
 
     if "Interactive" in viz_mode:
         fig = visualizer.build_interactive_figure(
-            visible_trades=selected_takeoff_trades,
+            visible_cad_layers=selected_raw_cad_layers,
             visible_layers=selected_base_layers,
+            visible_trades=selected_takeoff_trades,
             label_mode=label_mode,
             focus_mode=focus_mode,
+            show_cad_text=show_cad_text,
+            highlight_walls=hl_walls,
+            highlight_floors=hl_floors,
+            highlight_openings=hl_openings,
+            highlight_fixtures=hl_fixtures,
             plot_height=canvas_height,
             theme=canvas_theme,
             dark_mode=(canvas_theme != "light"),
@@ -633,6 +673,31 @@ with tab1:
         st.plotly_chart(fig, use_container_width=True)
         st.caption(
             "💡 **Canvas Navigation**: Click & drag to pan across the plan • Mouse scroll or Box-zoom to inspect rooms • Double-click to reset view • Hover over any line or pin for instant CAD metadata."
+        )
+
+        # Takeoff-to-BOQ Inspector Summary
+        t1_cnt = sum(1 for op in takeoff.openings if op.area_sqm <= 0.5)
+        t2_cnt = sum(1 for op in takeoff.openings if 0.5 < op.area_sqm <= 3.0)
+        t3_cnt = sum(1 for op in takeoff.openings if op.area_sqm > 3.0)
+
+        st.markdown(
+            f"""
+            <div style="background-color: {'#161B22' if canvas_theme != 'light' else '#F1F5F9'};
+                        border: 1px solid {'#30363D' if canvas_theme != 'light' else '#CBD5E1'};
+                        border-radius: 8px; padding: 12px 18px; margin-top: 10px; margin-bottom: 20px;">
+                <div style="font-weight: 600; font-size: 0.95rem; color: {'#58A6FF' if canvas_theme != 'light' else '#0969DA'}; margin-bottom: 6px;">
+                    🎯 Takeoff-to-BOQ Measurement Traceability
+                </div>
+                <div style="font-size: 0.86rem; color: {'#C9D1D9' if canvas_theme != 'light' else '#334155'}; line-height: 1.6;">
+                    • <b>Civil Masonry & Plaster</b>: Measured <b>{takeoff.wall_length_m:.1f} m</b> wall centerlines → <b>{takeoff.total_wall_area_sqm:.1f} m²</b> gross wall area (highlighted in coral <span style="color:#FF3366;">━</span>).<br>
+                    • <b>Flooring & Finishes</b>: Measured <b>{takeoff.total_floor_area_sqm:.1f} m²</b> ({takeoff.total_floor_area_sqm * 10.764:.0f} sq.ft) net floor area across <b>{len(takeoff.room_polygons)}</b> detected room zones (highlighted in emerald <span style="color:#10B981;">■</span>).<br>
+                    • <b>IS 1200 Statutory Deductions</b>: <b>{len(takeoff.openings)} openings</b> accounted for:
+                      <b>{t1_cnt}</b> Tier 1 (exempt 0%), <b>{t2_cnt}</b> Tier 2 (single-face deducted), <b>{t3_cnt}</b> Tier 3 (both faces deducted + reveals added).<br>
+                    • <b>Classified Fixtures</b>: <b>{sum(takeoff.block_counts.values())} pcs</b> CAD symbols mapped to verified Indian B2B catalog SKUs.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
     else:
         with st.spinner("Rendering high-resolution vector blueprint..."):
